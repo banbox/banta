@@ -1,3 +1,3 @@
-module github.com/anyongjin/banta
+module github.com/banbox/banta
 
 go 1.21.4

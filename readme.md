@@ -26,7 +26,7 @@ Some indicators such as KDJ generally return two fields k and d `kdjRes := ta.KD
 package main
 import (
 	"fmt"
-	ta "github.com/anyongjin/banta"
+	ta "github.com/banbox/banta"
 )
 
 var envMap = make(map[string]*ta.BarEnv)

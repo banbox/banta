@@ -18,7 +18,7 @@
 package main
 import (
 	"fmt"
-	ta "github.com/anyongjin/banta"
+	ta "github.com/banbox/banta"
 )
 
 var envMap = make(map[string]*ta.BarEnv)
