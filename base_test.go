@@ -66,7 +66,7 @@ var (
 func RunFakeEnv(env *BarEnv, barCb func(int, Kline)) {
 	env.Reset()
 	for i, bar := range DataKline {
-		env.OnBar(&bar)
+		env.OnBar(bar.Time, bar.Open, bar.High, bar.Low, bar.Close, bar.Volume)
 		if barCb != nil {
 			barCb(i, bar)
 		}

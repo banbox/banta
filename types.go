@@ -9,7 +9,7 @@ var (
 )
 
 type Kline struct {
-	Time   int
+	Time   int64
 	Open   float64
 	High   float64
 	Low    float64
@@ -18,12 +18,13 @@ type Kline struct {
 }
 
 type BarEnv struct {
-	TimeStart  int
-	TimeStop   int
+	TimeStart  int64
+	TimeStop   int64
 	Exchange   string
 	MarketType string
+	Symbol     string
 	TimeFrame  string
-	TFMSecs    int //周期的毫秒间隔
+	TFMSecs    int64 //周期的毫秒间隔
 	BarNum     int
 	MaxCache   int
 	Open       *Series
@@ -33,6 +34,7 @@ type BarEnv struct {
 	Volume     *Series
 	Items      map[string]*Series
 	XLogs      map[string]*CrossLog
+	Data       map[string]interface{}
 }
 
 type Series struct {
@@ -40,7 +42,7 @@ type Series struct {
 	Data []float64
 	Cols []*Series
 	Key  string
-	Time int
+	Time int64
 	More interface{}
 }
 

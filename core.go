@@ -17,19 +17,19 @@ func (e *BarEnv) GetSeries(key string) *Series {
 	return &res
 }
 
-func (e *BarEnv) OnBar(bar *Kline) {
-	if e.TimeStop >= bar.Time {
-		panic(fmt.Errorf("old Bar Receive: %d, Current: %d", bar.Time, e.TimeStop))
+func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume float64) {
+	if e.TimeStop > barMs {
+		panic(fmt.Errorf("old Bar Receive: %d, Current: %d", barMs, e.TimeStop))
 	}
-	e.TimeStart = bar.Time - e.TFMSecs
-	e.TimeStop = bar.Time
+	e.TimeStart = barMs
+	e.TimeStop = barMs + e.TFMSecs
 	e.BarNum += 1
 	if e.Open == nil {
-		e.Open = &Series{e, []float64{bar.Open}, nil, "o", bar.Time, nil}
-		e.High = &Series{e, []float64{bar.High}, nil, "h", bar.Time, nil}
-		e.Low = &Series{e, []float64{bar.Low}, nil, "l", bar.Time, nil}
-		e.Close = &Series{e, []float64{bar.Close}, nil, "c", bar.Time, nil}
-		e.Volume = &Series{e, []float64{bar.Volume}, nil, "v", bar.Time, nil}
+		e.Open = &Series{e, []float64{open}, nil, "o", barMs, nil}
+		e.High = &Series{e, []float64{high}, nil, "h", barMs, nil}
+		e.Low = &Series{e, []float64{low}, nil, "l", barMs, nil}
+		e.Close = &Series{e, []float64{close}, nil, "c", barMs, nil}
+		e.Volume = &Series{e, []float64{volume}, nil, "v", barMs, nil}
 		e.Items = map[string]*Series{
 			"o": e.Open,
 			"h": e.High,
@@ -42,16 +42,16 @@ func (e *BarEnv) OnBar(bar *Kline) {
 			e.MaxCache = 1000
 		}
 	} else {
-		e.Open.Time = bar.Time
-		e.Open.Data = append(e.Open.Data, bar.Open)
-		e.High.Time = bar.Time
-		e.High.Data = append(e.High.Data, bar.High)
-		e.Low.Time = bar.Time
-		e.Low.Data = append(e.Low.Data, bar.Low)
-		e.Close.Time = bar.Time
-		e.Close.Data = append(e.Close.Data, bar.Close)
-		e.Volume.Time = bar.Time
-		e.Volume.Data = append(e.Volume.Data, bar.Volume)
+		e.Open.Time = barMs
+		e.Open.Data = append(e.Open.Data, open)
+		e.High.Time = barMs
+		e.High.Data = append(e.High.Data, high)
+		e.Low.Time = barMs
+		e.Low.Data = append(e.Low.Data, low)
+		e.Close.Time = barMs
+		e.Close.Data = append(e.Close.Data, close)
+		e.Volume.Time = barMs
+		e.Volume.Data = append(e.Volume.Data, volume)
 		e.TrimOverflow()
 	}
 }
