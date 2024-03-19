@@ -6,29 +6,46 @@ import (
 	"slices"
 )
 
+type sumState struct {
+	sumVal float64
+	addLen int
+}
+
 func Sum(obj *Series, period int) *Series {
 	resKey := fmt.Sprintf("%s_sum%d", obj.Key, period)
 	res := obj.Env.GetSeries(resKey)
 	if res.Cached() {
 		return res
 	}
-	resVal := res.Get(0)
-	if math.IsNaN(resVal) {
-		resVal = 0
+	sta, _ := res.More.(*sumState)
+	if sta == nil {
+		sta = &sumState{}
+		res.More = sta
 	}
 	curVal := obj.Get(0)
 	if math.IsNaN(curVal) {
+		// 输入值无效，重置，重新开始累计
 		curVal = 0
-	}
-	sumLen := res.Len()
-	if sumLen == 0 {
-		resVal = curVal
-	} else if sumLen < period {
-		resVal += curVal
+		sta.sumVal = 0
+		sta.addLen = 0
 	} else {
-		resVal += curVal - obj.Get(period)
+		if sta.addLen < period {
+			sta.sumVal += curVal
+			sta.addLen += 1
+		} else {
+			oldVal := obj.Get(period)
+			if math.IsNaN(oldVal) {
+				sta.sumVal = 0
+				sta.addLen = 0
+			} else {
+				sta.sumVal += curVal - oldVal
+			}
+		}
 	}
-	return res.Append(resVal)
+	if sta.addLen < period {
+		return res.Append(math.NaN())
+	}
+	return res.Append(sta.sumVal)
 }
 
 func SMA(obj *Series, period int) *Series {
@@ -205,6 +222,9 @@ func Highest(obj *Series, period int) *Series {
 	if res.Cached() {
 		return res
 	}
+	if obj.Len() < period {
+		return res.Append(math.NaN())
+	}
 	resVal := slices.Max(obj.Range(0, period))
 	return res.Append(resVal)
 }
@@ -214,6 +234,9 @@ func Lowest(obj *Series, period int) *Series {
 	res := obj.Env.GetSeries(resKey)
 	if res.Cached() {
 		return res
+	}
+	if obj.Len() < period {
+		return res.Append(math.NaN())
 	}
 	resVal := slices.Min(obj.Range(0, period))
 	return res.Append(resVal)
@@ -233,13 +256,15 @@ func KDJBy(high *Series, low *Series, close *Series, period int, sm1 int, sm2 in
 		return res
 	}
 	rsv := high.Env.GetSeries(fmt.Sprintf("%s_rsv%d", close.Key, period))
-	hhigh := Highest(high, period).Get(0)
-	llow := Lowest(low, period).Get(0)
-	maxChg := hhigh - llow
-	if equalNearly(maxChg, 0) {
-		rsv.Append(50.0)
-	} else {
-		rsv.Append((close.Get(0) - llow) / maxChg * 100)
+	if !rsv.Cached() {
+		hhigh := Highest(high, period).Get(0)
+		llow := Lowest(low, period).Get(0)
+		maxChg := hhigh - llow
+		if equalNearly(maxChg, 0) {
+			rsv.Append(50.0)
+		} else {
+			rsv.Append((close.Get(0) - llow) / maxChg * 100)
+		}
 	}
 	if maType == "rma" {
 		k := RMABy(rsv, sm1, 0, 50)
