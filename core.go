@@ -19,7 +19,7 @@ func (e *BarEnv) GetSeries(key string) *Series {
 
 func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume float64) {
 	if e.TimeStop > barMs {
-		panic(fmt.Errorf("old Bar Receive: %d, Current: %d", barMs, e.TimeStop))
+		panic(fmt.Errorf("%s/%s old Bar Receive: %d, Current: %d", e.Symbol, e.TimeFrame, barMs, e.TimeStop))
 	}
 	e.TimeStart = barMs
 	e.TimeStop = barMs + e.TFMSecs
