@@ -131,6 +131,11 @@ func (s *Series) Get(i int) float64 {
 	return s.Data[allLen-i-1]
 }
 
+/*
+Range 获取范围内的值。
+start 起始位置，0是最近的
+stop 结束位置，不含
+*/
 func (s *Series) Range(start, stop int) []float64 {
 	allLen := len(s.Data)
 	_start := max(allLen-stop, 0)
