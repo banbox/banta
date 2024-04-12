@@ -6,6 +6,19 @@ import (
 	"slices"
 )
 
+/*
+AvgPrice 平均价格=(h+l+c)/3
+*/
+func AvgPrice(e *BarEnv) *Series {
+	resKey := fmt.Sprintf("%s_avgp", e.Close.Key)
+	res := e.GetSeries(resKey)
+	if res.Cached() {
+		return res
+	}
+	avgPrice := (e.High.Get(0) + e.Low.Get(0) + e.Close.Get(0)) / 3
+	return res.Append(avgPrice)
+}
+
 type sumState struct {
 	sumVal float64
 	addLen int
@@ -367,8 +380,8 @@ func StdDevBy(obj *Series, period int, ddof int) *Series {
 }
 
 // BBANDS 布林带指标。返回：upper, mean, lower
-func BBANDS(obj *Series, period, stdUp, stdDn int) *Series {
-	resKey := fmt.Sprintf("%s_bb%d_%d_%d", obj.Key, period, stdUp, stdDn)
+func BBANDS(obj *Series, period int, stdUp, stdDn float64) *Series {
+	resKey := fmt.Sprintf("%s_bb%d_%f_%f", obj.Key, period, stdUp, stdDn)
 	res := obj.Env.GetSeries(resKey)
 	if res.Cached() {
 		return res
@@ -379,8 +392,8 @@ func BBANDS(obj *Series, period, stdUp, stdDn int) *Series {
 		return res.Append([]float64{math.NaN(), math.NaN(), math.NaN()})
 	}
 
-	upper := mean + dev*float64(stdUp)
-	lower := mean - dev*float64(stdDn)
+	upper := mean + dev*stdUp
+	lower := mean - dev*stdDn
 
 	return res.Append([]float64{upper, mean, lower})
 }
