@@ -86,6 +86,13 @@ func (e *BarEnv) TrimOverflow() {
 	}
 }
 
+func (s *Series) Set(obj interface{}) *Series {
+	if !s.Cached() {
+		return s.Append(obj)
+	}
+	return s
+}
+
 func (s *Series) Append(obj interface{}) *Series {
 	if s.Time >= s.Env.TimeStop {
 		panic(ErrRepeatAppend)
