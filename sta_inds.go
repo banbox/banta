@@ -284,6 +284,26 @@ func Highest(obj *Series, period int) *Series {
 	return res.Append(resVal)
 }
 
+func HighestBar(obj *Series, period int) *Series {
+	resKey := fmt.Sprintf("%s_hhb%d", obj.Key, period)
+	res := obj.Env.GetSeries(resKey)
+	if res.Cached() {
+		return res
+	}
+	if obj.Len() < period {
+		return res.Append(math.NaN())
+	}
+	data := obj.Range(0, period)
+	maxIdx, maxVal := -1, 0.0
+	for i, val := range data {
+		if maxIdx < 0 || val > maxVal {
+			maxVal = val
+			maxIdx = i
+		}
+	}
+	return res.Append(maxIdx)
+}
+
 func Lowest(obj *Series, period int) *Series {
 	resKey := fmt.Sprintf("%s_ll%d", obj.Key, period)
 	res := obj.Env.GetSeries(resKey)
@@ -295,6 +315,26 @@ func Lowest(obj *Series, period int) *Series {
 	}
 	resVal := slices.Min(obj.Range(0, period))
 	return res.Append(resVal)
+}
+
+func LowestBar(obj *Series, period int) *Series {
+	resKey := fmt.Sprintf("%s_llb%d", obj.Key, period)
+	res := obj.Env.GetSeries(resKey)
+	if res.Cached() {
+		return res
+	}
+	if obj.Len() < period {
+		return res.Append(math.NaN())
+	}
+	data := obj.Range(0, period)
+	minIdx, minVal := -1, 0.0
+	for i, val := range data {
+		if minIdx < 0 || val < minVal {
+			minVal = val
+			minIdx = i
+		}
+	}
+	return res.Append(minIdx)
 }
 
 /*
@@ -332,6 +372,27 @@ func KDJBy(high *Series, low *Series, close *Series, period int, sm1 int, sm2 in
 	} else {
 		panic(fmt.Sprintf("unknown maType for KDJ: %s", maType))
 	}
+}
+
+/*
+Aroon 阿隆指标  反映了一段时间内出现最高价和最低价距离当前时间的远近。
+AroonUp: (period - HighestBar(high, period+1)) / period * 100
+AroonDn: (period - LowestBar(low, period+1)) / period * 100
+Osc: AroonUp - AroonDn
+返回：AroonUp, Osc, AroonDn
+*/
+func Aroon(high *Series, low *Series, period int) *Series {
+	resKey := fmt.Sprintf("%s_aroon%d", high.Key, period)
+	e := high.Env
+	res := e.GetSeries(resKey)
+	if res.Cached() {
+		return res
+	}
+	fac := -100 / float64(period)
+	up := HighestBar(high, period+1).Mul(fac).Add(100)
+	dn := LowestBar(low, period+1).Mul(fac).Add(100)
+	osc := up.Sub(dn)
+	return res.Append([]*Series{up, osc, dn})
 }
 
 /*
