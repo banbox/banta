@@ -344,8 +344,8 @@ func KDJ(high *Series, low *Series, close *Series, period int, sm1 int, sm2 int)
 	return KDJBy(high, low, close, period, sm1, sm2, "rma")
 }
 
-func KDJBy(high *Series, low *Series, close *Series, period int, sm1 int, sm2 int, maType string) *Series {
-	resKey := fmt.Sprintf("%s_kdj%d_%d_%d_%s", close.Key, period, sm1, sm2, maType)
+func KDJBy(high *Series, low *Series, close *Series, period int, sm1 int, sm2 int, maBy string) *Series {
+	resKey := fmt.Sprintf("%s_kdj%d_%d_%d_%s", close.Key, period, sm1, sm2, maBy)
 	res := high.Env.GetSeries(resKey)
 	if res.Cached() {
 		return res
@@ -361,16 +361,16 @@ func KDJBy(high *Series, low *Series, close *Series, period int, sm1 int, sm2 in
 			rsv.Append((close.Get(0) - llow) / maxChg * 100)
 		}
 	}
-	if maType == "rma" {
+	if maBy == "rma" {
 		k := RMABy(rsv, sm1, 0, 50)
 		d := RMABy(k, sm2, 0, 50)
-		return res.Append([]*Series{k, d})
-	} else if maType == "sma" {
+		return res.Append([]*Series{k, d, rsv})
+	} else if maBy == "sma" {
 		k := SMA(rsv, sm1)
 		d := SMA(k, sm2)
-		return res.Append([]*Series{k, d})
+		return res.Append([]*Series{k, d, rsv})
 	} else {
-		panic(fmt.Sprintf("unknown maType for KDJ: %s", maType))
+		panic(fmt.Sprintf("unknown maBy for KDJ: %s", maBy))
 	}
 }
 

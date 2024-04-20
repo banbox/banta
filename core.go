@@ -205,6 +205,20 @@ func (s *Series) Cut(keepNum int) {
 	s.Data = s.Data[curLen-keepNum:]
 }
 
+func (s *Series) Back(num int) *Series {
+	res := s.Env.GetSeries(fmt.Sprintf("%s_mv%v", s.Key, num))
+	if !res.Cached() {
+		endPos := len(s.Data) - num
+		if endPos > 0 {
+			res.Data = s.Data[:endPos]
+		} else {
+			res.Data = nil
+		}
+		res.Time = s.Env.TimeStop
+	}
+	return res
+}
+
 func (s *Series) apply(obj interface{}, text string, isRev bool, calc func(float64, float64) float64) *Series {
 	if len(s.Cols) > 0 {
 		panic(ErrGetDataOfMerged)
