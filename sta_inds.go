@@ -225,9 +225,8 @@ func MACDBy(obj *Series, fast int, slow int, smooth int, initType int) *Series {
 	return res.Append([]*Series{macd, signal})
 }
 
-// RSI 计算相对强度指数
-func RSI(obj *Series, period int) *Series {
-	resKey := fmt.Sprintf("%s_rsi%d", obj.Key, period)
+func rsi(obj *Series, period int, subVal float64) *Series {
+	resKey := fmt.Sprintf("%s_rsi%d_%v", obj.Key, period, subVal)
 	res := obj.Env.GetSeries(resKey)
 	if res.Cached() {
 		return res
@@ -263,12 +262,22 @@ func RSI(obj *Series, period int) *Series {
 
 	var resVal float64
 	if res.Len() >= period {
-		resVal = more[1] * 100 / (more[1] + more[2])
+		resVal = more[1]*100/(more[1]+more[2]) - subVal
 	} else {
 		resVal = math.NaN()
 	}
 
 	return res.Append(resVal)
+}
+
+// RSI 计算相对强度指数
+func RSI(obj *Series, period int) *Series {
+	return rsi(obj, period, 0)
+}
+
+// RSI50 计算相对强度指数-50
+func RSI50(obj *Series, period int) *Series {
+	return rsi(obj, period, 50)
 }
 
 func Highest(obj *Series, period int) *Series {
