@@ -17,7 +17,7 @@ func (e *BarEnv) GetSeries(key string) *Series {
 	return &res
 }
 
-func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume float64) {
+func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume, info float64) {
 	if e.TimeStop > barMs {
 		panic(fmt.Errorf("%s/%s old Bar Receive: %d, Current: %d", e.Symbol, e.TimeFrame, barMs, e.TimeStop))
 	}
@@ -30,12 +30,14 @@ func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume float64) {
 		e.Low = &Series{e, []float64{low}, nil, "l", barMs, nil}
 		e.Close = &Series{e, []float64{close}, nil, "c", barMs, nil}
 		e.Volume = &Series{e, []float64{volume}, nil, "v", barMs, nil}
+		e.Info = &Series{e, []float64{info}, nil, "d", barMs, nil}
 		e.Items = map[string]*Series{
 			"o": e.Open,
 			"h": e.High,
 			"l": e.Low,
 			"c": e.Close,
 			"v": e.Volume,
+			"d": e.Info,
 		}
 		if e.MaxCache == 0 {
 			// 默认保留1000个
@@ -52,6 +54,8 @@ func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume float64) {
 		e.Close.Data = append(e.Close.Data, close)
 		e.Volume.Time = barMs
 		e.Volume.Data = append(e.Volume.Data, volume)
+		e.Info.Time = barMs
+		e.Info.Data = append(e.Info.Data, info)
 		e.TrimOverflow()
 	}
 }
@@ -65,6 +69,7 @@ func (e *BarEnv) Reset() {
 	e.Low = nil
 	e.Close = nil
 	e.Volume = nil
+	e.Info = nil
 	e.Items = nil
 	e.XLogs = nil
 }

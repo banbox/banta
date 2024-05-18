@@ -15,6 +15,7 @@ type Kline struct {
 	Low    float64
 	Close  float64
 	Volume float64
+	Info   float64
 }
 
 type BarEnv struct {
@@ -32,6 +33,7 @@ type BarEnv struct {
 	Low        *Series
 	Close      *Series
 	Volume     *Series
+	Info       *Series
 	Items      map[string]*Series
 	XLogs      map[string]*CrossLog
 	Data       map[string]interface{}
