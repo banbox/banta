@@ -35,7 +35,8 @@ func TestCommon(t *testing.T) {
 			return SMA(env.Close, 9).Get(0)
 		}},
 		{"vwma", vwmaArr, func() float64 {
-			return VWMA(env, 9).Get(0)
+			mid := AvgPrice(env)
+			return VWMA(mid, env.Volume, 9).Get(0)
 		}},
 		{"ema", emaArr, func() float64 {
 			return EMA(env.Close, 12).Get(0)

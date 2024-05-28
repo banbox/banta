@@ -82,32 +82,30 @@ type moreVWMA struct {
 
 /*
 VWMA 成交量加权平均价格
-公式：sum((high+low+close)/3*volume)/sum(volume)
+公式：sum(price*volume)/sum(volume)
 */
-func VWMA(e *BarEnv, period int) *Series {
-	resKey := fmt.Sprintf("%s_vwma%d", e.Close.Key, period)
-	res := e.GetSeries(resKey)
+func VWMA(price *Series, vol *Series, period int) *Series {
+	resKey := fmt.Sprintf("%s_vwma%d", price.Key, period)
+	res := price.Env.GetSeries(resKey)
 	if res.Cached() {
 		return res
 	}
-	avgPrice := (e.High.Get(0) + e.Low.Get(0) + e.Close.Get(0)) / 3
-	vol := e.Volume.Get(0)
-	cost := avgPrice * vol
+	volVal := vol.Get(0)
+	cost := price.Get(0) * volVal
 	more, _ := res.More.(*moreVWMA)
 	if more == nil || math.IsNaN(cost) {
 		more = &moreVWMA{}
 		res.More = more
 	}
 	if more.len >= period {
-		oldPrice := (e.High.Get(period) + e.Low.Get(period) + e.Close.Get(period)) / 3
-		oldVol := e.Volume.Get(period)
-		oldCost := oldPrice * oldVol
+		oldVol := vol.Get(period)
+		oldCost := price.Get(period) * oldVol
 		more.sumCost -= oldCost
 		more.sumWei -= oldVol
 	}
 	if !math.IsNaN(cost) {
 		more.sumCost += cost
-		more.sumWei += vol
+		more.sumWei += volVal
 		more.len += 1
 	}
 	if more.len < period {
