@@ -10,8 +10,7 @@ import (
 AvgPrice 平均价格=(h+l+c)/3
 */
 func AvgPrice(e *BarEnv) *Series {
-	resKey := fmt.Sprintf("%s_avgp", e.Close.Key)
-	res := e.GetSeries(resKey)
+	res := e.Close.To("avgp", 0)
 	if res.Cached() {
 		return res
 	}
@@ -25,8 +24,7 @@ type sumState struct {
 }
 
 func Sum(obj *Series, period int) *Series {
-	resKey := fmt.Sprintf("%s_sum%d", obj.Key, period)
-	res := obj.Env.GetSeries(resKey)
+	res := obj.To("sum", period)
 	if res.Cached() {
 		return res
 	}
@@ -62,8 +60,7 @@ func Sum(obj *Series, period int) *Series {
 }
 
 func SMA(obj *Series, period int) *Series {
-	resKey := fmt.Sprintf("%s_sma%d", obj.Key, period)
-	res := obj.Env.GetSeries(resKey)
+	res := obj.To("sma", period)
 	if res.Cached() {
 		return res
 	}
@@ -85,8 +82,7 @@ VWMA 成交量加权平均价格
 公式：sum(price*volume)/sum(volume)
 */
 func VWMA(price *Series, vol *Series, period int) *Series {
-	resKey := fmt.Sprintf("%s_vwma%d", price.Key, period)
-	res := price.Env.GetSeries(resKey)
+	res := price.To("vwma", period)
 	if res.Cached() {
 		return res
 	}
@@ -114,8 +110,7 @@ func VWMA(price *Series, vol *Series, period int) *Series {
 	return res.Append(more.sumCost / more.sumWei)
 }
 
-func ewma(obj *Series, resKey string, period int, alpha float64, initType int, initVal float64) *Series {
-	res := obj.Env.GetSeries(resKey)
+func ewma(obj, res *Series, period int, alpha float64, initType int, initVal float64) *Series {
 	if res.Cached() {
 		return res
 	}
@@ -153,9 +148,9 @@ EMABy 指数移动均线
 initType：0使用SMA初始化，1第一个有效值初始化
 */
 func EMABy(obj *Series, period int, initType int) *Series {
-	resKey := fmt.Sprintf("%s_ema%d_%d", obj.Key, period, initType)
+	res := obj.To("ema", period*10+initType)
 	alpha := 2.0 / float64(period+1)
-	return ewma(obj, resKey, period, alpha, initType, math.NaN())
+	return ewma(obj, res, period, alpha, initType, math.NaN())
 }
 
 /*
@@ -178,14 +173,17 @@ initType：0使用SMA初始化，1第一个有效值初始化
 initVal 默认Nan
 */
 func RMABy(obj *Series, period int, initType int, initVal float64) *Series {
-	resKey := fmt.Sprintf("%s_rma%d_%d_%f", obj.Key, period, initType, initVal)
+	hash := period*1000 + initType*100
+	if !math.IsNaN(initVal) {
+		hash += int(initVal)
+	}
+	res := obj.To("rma", hash)
 	alpha := 1.0 / float64(period)
-	return ewma(obj, resKey, period, alpha, initType, initVal)
+	return ewma(obj, res, period, alpha, initType, initVal)
 }
 
 func TR(high *Series, low *Series, close *Series) *Series {
-	resKey := fmt.Sprintf("%s_tr", high.Key)
-	res := high.Env.GetSeries(resKey)
+	res := high.To("tr", 0)
 	if res.Cached() {
 		return res
 	}
@@ -211,8 +209,7 @@ func MACD(obj *Series, fast int, slow int, smooth int) *Series {
 }
 
 func MACDBy(obj *Series, fast int, slow int, smooth int, initType int) *Series {
-	resKey := fmt.Sprintf("%s_macd_%d_%d_%d_%d", obj.Key, fast, slow, smooth, initType)
-	res := obj.Env.GetSeries(resKey)
+	res := obj.To("macd", fast*1000+slow*100+smooth*10+initType)
 	if res.Cached() {
 		return res
 	}
@@ -224,8 +221,7 @@ func MACDBy(obj *Series, fast int, slow int, smooth int, initType int) *Series {
 }
 
 func rsi(obj *Series, period int, subVal float64) *Series {
-	resKey := fmt.Sprintf("%s_rsi%d_%v", obj.Key, period, subVal)
-	res := obj.Env.GetSeries(resKey)
+	res := obj.To("rsi", period*100+int(subVal))
 	if res.Cached() {
 		return res
 	}
@@ -279,8 +275,7 @@ func RSI50(obj *Series, period int) *Series {
 }
 
 func Highest(obj *Series, period int) *Series {
-	resKey := fmt.Sprintf("%s_hh%d", obj.Key, period)
-	res := obj.Env.GetSeries(resKey)
+	res := obj.To("hh", period)
 	if res.Cached() {
 		return res
 	}
@@ -292,8 +287,7 @@ func Highest(obj *Series, period int) *Series {
 }
 
 func HighestBar(obj *Series, period int) *Series {
-	resKey := fmt.Sprintf("%s_hhb%d", obj.Key, period)
-	res := obj.Env.GetSeries(resKey)
+	res := obj.To("hhb", period)
 	if res.Cached() {
 		return res
 	}
@@ -312,8 +306,7 @@ func HighestBar(obj *Series, period int) *Series {
 }
 
 func Lowest(obj *Series, period int) *Series {
-	resKey := fmt.Sprintf("%s_ll%d", obj.Key, period)
-	res := obj.Env.GetSeries(resKey)
+	res := obj.To("ll", period)
 	if res.Cached() {
 		return res
 	}
@@ -325,8 +318,7 @@ func Lowest(obj *Series, period int) *Series {
 }
 
 func LowestBar(obj *Series, period int) *Series {
-	resKey := fmt.Sprintf("%s_llb%d", obj.Key, period)
-	res := obj.Env.GetSeries(resKey)
+	res := obj.To("llb", period)
 	if res.Cached() {
 		return res
 	}
@@ -351,13 +343,20 @@ func KDJ(high *Series, low *Series, close *Series, period int, sm1 int, sm2 int)
 	return KDJBy(high, low, close, period, sm1, sm2, "rma")
 }
 
+var (
+	kdjTypes = map[string]int{
+		"rma": 1,
+		"sma": 2,
+	}
+)
+
 func KDJBy(high *Series, low *Series, close *Series, period int, sm1 int, sm2 int, maBy string) *Series {
-	resKey := fmt.Sprintf("%s_kdj%d_%d_%d_%s", close.Key, period, sm1, sm2, maBy)
-	res := high.Env.GetSeries(resKey)
+	byVal, _ := kdjTypes[maBy]
+	res := high.To("kdj", period*100000+sm1*1000+sm2*10+byVal)
 	if res.Cached() {
 		return res
 	}
-	rsv := high.Env.GetSeries(fmt.Sprintf("%s_rsv%d", close.Key, period))
+	rsv := high.To("rsv", period)
 	if !rsv.Cached() {
 		hhigh := Highest(high, period).Get(0)
 		llow := Lowest(low, period).Get(0)
@@ -389,9 +388,7 @@ Osc: AroonUp - AroonDn
 返回：AroonUp, Osc, AroonDn
 */
 func Aroon(high *Series, low *Series, period int) *Series {
-	resKey := fmt.Sprintf("%s_aroon%d", high.Key, period)
-	e := high.Env
-	res := e.GetSeries(resKey)
+	res := high.To("aroon", period)
 	if res.Cached() {
 		return res
 	}
@@ -417,8 +414,7 @@ func StdDev(obj *Series, period int) *Series {
 返回：stddev，mean
 */
 func StdDevBy(obj *Series, period int, ddof int) *Series {
-	resKey := fmt.Sprintf("%s_sdev%d_%d", obj.Key, period, ddof)
-	res := obj.Env.GetSeries(resKey)
+	res := obj.To("sdev", period*10+ddof)
 	if res.Cached() {
 		return res
 	}
@@ -449,8 +445,7 @@ func StdDevBy(obj *Series, period int, ddof int) *Series {
 
 // BBANDS 布林带指标。返回：upper, mean, lower
 func BBANDS(obj *Series, period int, stdUp, stdDn float64) *Series {
-	resKey := fmt.Sprintf("%s_bb%d_%f_%f", obj.Key, period, stdUp, stdDn)
-	res := obj.Env.GetSeries(resKey)
+	res := obj.To("bb", period*10000+int(stdUp*1000)+int(stdDn*10))
 	if res.Cached() {
 		return res
 	}
@@ -472,8 +467,7 @@ func BBANDS(obj *Series, period int, stdUp, stdDn float64) *Series {
 9和13表示超买；-9和-13表示超卖
 */
 func TD(obj *Series) *Series {
-	resKey := fmt.Sprintf("%s_td", obj.Key)
-	res := obj.Env.GetSeries(resKey)
+	res := obj.To("td", 0)
 	if res.Cached() {
 		return res
 	}
@@ -511,8 +505,8 @@ type AdxState struct {
 */
 func ADX(high *Series, low *Series, close *Series, period int) *Series {
 	// 初始化相关的系列
-	dx := close.Env.GetSeries(fmt.Sprintf("%s_dx%d", close.Key, period))
-	adx := close.Env.GetSeries(fmt.Sprintf("%s_adx%d", close.Key, period))
+	dx := close.To("dx", period)
+	adx := close.To("adx", period)
 
 	// 计算 DMH 和 DML
 	dmhVal := high.Get(0) - high.Get(1)
@@ -565,8 +559,7 @@ func ADX(high *Series, low *Series, close *Series, period int) *Series {
 ROC rate of change
 */
 func ROC(obj *Series, period int) *Series {
-	resKey := fmt.Sprintf("%s_roc%d", obj.Key, period)
-	res := obj.Env.GetSeries(resKey)
+	res := obj.To("roc", period)
 	if res.Cached() {
 		return res
 	}
@@ -577,15 +570,15 @@ func ROC(obj *Series, period int) *Series {
 
 // HeikinAshi 计算Heikin-Ashi
 func HeikinAshi(e *BarEnv) *Series {
-	res := e.GetSeries(fmt.Sprintf("%s_heikin", e.Open.Key))
+	res := e.Close.To("heikin", 0)
 	if res.Cached() {
 		return res
 	}
 
-	ho := e.GetSeries(fmt.Sprintf("%s_hka", e.Open.Key))
-	hh := e.GetSeries(fmt.Sprintf("%s_hka", e.High.Key))
-	hl := e.GetSeries(fmt.Sprintf("%s_hka", e.Low.Key))
-	hc := e.GetSeries(fmt.Sprintf("%s_hka", e.Close.Key))
+	ho := e.Open.To("hka", 0)
+	hh := e.High.To("hka", 0)
+	hl := e.Low.To("hka", 0)
+	hc := e.Close.To("hka", 0)
 
 	o, h, l, c := e.Open.Get(0), e.High.Get(0), e.Low.Get(0), e.Close.Get(0)
 

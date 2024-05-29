@@ -4,18 +4,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
-	"strconv"
 )
-
-func (e *BarEnv) GetSeries(key string) *Series {
-	if ser, ok := e.Items[key]; ok {
-		return ser
-	}
-
-	res := Series{e, nil, nil, key, 0, nil}
-	e.Items[key] = &res
-	return &res
-}
 
 func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume, info float64) {
 	if e.TimeStop > barMs {
@@ -25,20 +14,12 @@ func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume, info float64
 	e.TimeStop = barMs + e.TFMSecs
 	e.BarNum += 1
 	if e.Open == nil {
-		e.Open = &Series{e, []float64{open}, nil, "o", barMs, nil}
-		e.High = &Series{e, []float64{high}, nil, "h", barMs, nil}
-		e.Low = &Series{e, []float64{low}, nil, "l", barMs, nil}
-		e.Close = &Series{e, []float64{close}, nil, "c", barMs, nil}
-		e.Volume = &Series{e, []float64{volume}, nil, "v", barMs, nil}
-		e.Info = &Series{e, []float64{info}, nil, "d", barMs, nil}
-		e.Items = map[string]*Series{
-			"o": e.Open,
-			"h": e.High,
-			"l": e.Low,
-			"c": e.Close,
-			"v": e.Volume,
-			"d": e.Info,
-		}
+		e.Open = e.NewSeries([]float64{open})
+		e.High = e.NewSeries([]float64{high})
+		e.Low = e.NewSeries([]float64{low})
+		e.Close = e.NewSeries([]float64{close})
+		e.Volume = e.NewSeries([]float64{volume})
+		e.Info = e.NewSeries([]float64{info})
 		if e.MaxCache == 0 {
 			// 默认保留1000个
 			e.MaxCache = 1000
@@ -70,8 +51,6 @@ func (e *BarEnv) Reset() {
 	e.Close = nil
 	e.Volume = nil
 	e.Info = nil
-	e.Items = nil
-	e.XLogs = nil
 }
 
 func (e *BarEnv) TrimOverflow() {
@@ -84,11 +63,14 @@ func (e *BarEnv) TrimOverflow() {
 	e.High.Cut(e.MaxCache)
 	e.Low.Cut(e.MaxCache)
 	e.Close.Cut(e.MaxCache)
-	if e.Items != nil {
-		for _, se := range e.Items {
-			se.Cut(e.MaxCache)
-		}
-	}
+}
+
+func (e *BarEnv) NewSeries(data []float64) *Series {
+	subs := make(map[string]map[int]*Series)
+	xlogs := make(map[int]*CrossLog)
+	res := &Series{e.VNum, e, data, nil, e.TimeStart, nil, subs, xlogs}
+	e.VNum += 1
+	return res
 }
 
 func (s *Series) Set(obj interface{}) *Series {
@@ -110,8 +92,7 @@ func (s *Series) Append(obj interface{}) *Series {
 	} else if arr, ok := obj.([]float64); ok {
 		for i, v := range arr {
 			if i >= len(s.Cols) {
-				key := fmt.Sprintf("%s_%d", s.Key, i)
-				col := s.Env.GetSeries(key)
+				col := s.To("_", i)
 				s.Cols = append(s.Cols, col)
 				col.Append(v)
 			} else {
@@ -163,28 +144,34 @@ func (s *Series) Range(start, stop int) []float64 {
 }
 
 func (s *Series) Add(obj interface{}) *Series {
-	return s.apply(obj, "%s+%s", false, func(a, b float64) float64 {
-		return a + b
-	})
+	if len(s.Cols) > 0 {
+		panic(ErrGetDataOfMerged)
+	}
+	res, val := s.objVal("add", obj)
+	return res.Append(s.Get(0) + val)
 }
 
 func (s *Series) Sub(obj interface{}) *Series {
-	return s.apply(obj, "%s-%s", false, func(a, b float64) float64 {
-		return a - b
-	})
+	if len(s.Cols) > 0 {
+		panic(ErrGetDataOfMerged)
+	}
+	res, val := s.objVal("sub", obj)
+	return res.Append(s.Get(0) - val)
 }
 
 func (s *Series) Mul(obj interface{}) *Series {
-	return s.apply(obj, "%s*%s", false, func(a, b float64) float64 {
-		return a * b
-	})
+	if len(s.Cols) > 0 {
+		panic(ErrGetDataOfMerged)
+	}
+	res, val := s.objVal("mul", obj)
+	return res.Append(s.Get(0) * val)
 }
 
 func (s *Series) Abs() *Series {
 	if len(s.Cols) > 0 {
 		panic(ErrGetDataOfMerged)
 	}
-	res := s.Env.GetSeries(fmt.Sprintf("abs(%s)", s.Key))
+	res := s.To("abs", 0)
 	res.Append(math.Abs(s.Get(0)))
 	return res
 }
@@ -197,6 +184,11 @@ func (s *Series) Len() int {
 }
 
 func (s *Series) Cut(keepNum int) {
+	for _, dv := range s.Subs {
+		for _, v := range dv {
+			v.Cut(keepNum)
+		}
+	}
 	if len(s.Cols) > 0 {
 		for _, col := range s.Cols {
 			col.Cut(keepNum)
@@ -211,7 +203,7 @@ func (s *Series) Cut(keepNum int) {
 }
 
 func (s *Series) Back(num int) *Series {
-	res := s.Env.GetSeries(fmt.Sprintf("%s_mv%v", s.Key, num))
+	res := s.To("back", num)
 	if !res.Cached() {
 		endPos := len(s.Data) - num
 		if endPos > 0 {
@@ -224,71 +216,82 @@ func (s *Series) Back(num int) *Series {
 	return res
 }
 
-func (s *Series) apply(obj interface{}, text string, isRev bool, calc func(float64, float64) float64) *Series {
-	if len(s.Cols) > 0 {
-		panic(ErrGetDataOfMerged)
-	}
-	key2, val2 := keyVal(obj)
-	var key1 = s.Key
-	var val1 = s.Get(0)
-	if isRev {
-		key1, key2 = key2, key1
-		val1, val2 = val2, val1
-	}
-	res := s.Env.GetSeries(fmt.Sprintf(text, key1, key2))
-	res.Append(calc(val1, val2))
-	return res
-}
-
-func keyVal(obj interface{}) (string, float64) {
+func (s *Series) objVal(rel string, obj interface{}) (*Series, float64) {
 	if ser, ok := obj.(*Series); ok {
-		return ser.Key, ser.Get(0)
+		return s.To(rel, ser.ID), ser.Get(0)
 	} else if intVal, ok := obj.(int); ok {
-		return strconv.Itoa(intVal), float64(intVal)
+		return s.To(rel, intVal), float64(intVal)
 	} else if flt32Val, ok := obj.(float32); ok {
-		return strconv.FormatFloat(float64(flt32Val), 'f', -1, 64), float64(flt32Val)
+		return s.To(rel, int(flt32Val*10)), float64(flt32Val)
 	} else if fltVal, ok := obj.(float64); ok {
-		return strconv.FormatFloat(fltVal, 'f', -1, 64), fltVal
+		return s.To(rel, int(fltVal*10)), fltVal
 	} else {
-		fmt.Printf("invalid val for Series.keyVal: %t", obj)
+		fmt.Printf("invalid val for Series.objVal: %t", obj)
 		panic(ErrInvalidSeriesVal)
 	}
+}
+
+func (s *Series) To(k string, v int) *Series {
+	sub, _ := s.Subs[k]
+	if sub == nil {
+		sub = make(map[int]*Series)
+		s.Subs[k] = sub
+	}
+	old, _ := sub[v]
+	if old == nil {
+		old = s.Env.NewSeries(nil)
+		sub[v] = old
+	}
+	return old
 }
 
 /*
 Cross 计算最近一次交叉的距离。如果两个都变化，则两个都必须是序列。或者一个是常数一个是序列
 返回值：正数上穿，负数下穿，0表示未知或重合；abs(ret) - 1表示交叉点与当前bar的距离
 */
-func Cross(obj1 interface{}, obj2 interface{}) int {
-	var env *BarEnv
-	if ser1, ok1 := obj1.(*Series); ok1 {
-		env = ser1.Env
-	} else if ser2, ok2 := obj2.(*Series); ok2 {
-		env = ser2.Env
+func Cross(se *Series, obj2 interface{}) int {
+	var env = se.Env
+	var key int
+	var v2 float64
+	if se2, ok := obj2.(*Series); ok {
+		key = -se2.ID
+		v2 = se2.Get(0)
+	} else if intVal, ok := obj2.(int); ok {
+		key = intVal
+		v2 = float64(intVal)
+	} else if flt32Val, ok := obj2.(float32); ok {
+		key = int(flt32Val * 100)
+		v2 = float64(flt32Val)
+	} else if fltVal, ok := obj2.(float64); ok {
+		key = int(fltVal * 100)
+		v2 = fltVal
 	} else {
-		panic(fmt.Errorf("one of obj1 or obj2 must be Series, %t %t", obj1, obj2))
+		fmt.Printf("invalid val for Series.objVal: %t", obj2)
+		panic(ErrInvalidSeriesVal)
 	}
-	k1, v1 := keyVal(obj1)
-	k2, v2 := keyVal(obj2)
-	xKey := fmt.Sprintf("%s_xup_%s", k1, k2)
+	var newData = false
 	var log *CrossLog
-	if val, ok := env.XLogs[xKey]; ok {
+	if val, ok := se.XLogs[key]; ok {
 		log = val
-	} else {
-		log = &CrossLog{xKey, math.NaN(), []*XState{}}
-		if env.XLogs == nil {
-			env.XLogs = map[string]*CrossLog{}
+		if env.TimeStart > log.Time {
+			newData = true
+			log.Time = env.TimeStart
 		}
-		env.XLogs[xKey] = log
+	} else {
+		newData = true
+		log = &CrossLog{env.TimeStart, math.NaN(), []*XState{}}
+		se.XLogs[key] = log
 	}
-	diffVal := v1 - v2
-	if diffVal != 0 {
-		if math.IsNaN(log.PrevVal) {
-			log.PrevVal = diffVal
-		} else {
-			if factor := log.PrevVal * diffVal; factor < 0 {
+	if newData {
+		diffVal := se.Get(0) - v2
+		if diffVal != 0 {
+			if math.IsNaN(log.PrevVal) {
 				log.PrevVal = diffVal
-				log.Hist = append(log.Hist, &XState{numSign(diffVal), env.BarNum})
+			} else {
+				if factor := log.PrevVal * diffVal; factor < 0 {
+					log.PrevVal = diffVal
+					log.Hist = append(log.Hist, &XState{numSign(diffVal), env.BarNum})
+				}
 			}
 		}
 	}

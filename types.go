@@ -28,28 +28,29 @@ type BarEnv struct {
 	TFMSecs    int64 //周期的毫秒间隔
 	BarNum     int
 	MaxCache   int
+	VNum       int
 	Open       *Series
 	High       *Series
 	Low        *Series
 	Close      *Series
 	Volume     *Series
 	Info       *Series
-	Items      map[string]*Series
-	XLogs      map[string]*CrossLog
 	Data       map[string]interface{}
 }
 
 type Series struct {
-	Env  *BarEnv
-	Data []float64
-	Cols []*Series
-	Key  string
-	Time int64
-	More interface{}
+	ID    int
+	Env   *BarEnv
+	Data  []float64
+	Cols  []*Series
+	Time  int64
+	More  interface{}
+	Subs  map[string]map[int]*Series // 由此序列派生的；function：hash：object
+	XLogs map[int]*CrossLog          // 此序列交叉记录
 }
 
 type CrossLog struct {
-	Key     string
+	Time    int64
 	PrevVal float64
 	Hist    []*XState // 正数表示上穿，负数下穿，绝对值表示BarNum
 }
