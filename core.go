@@ -147,7 +147,7 @@ func (s *Series) Add(obj interface{}) *Series {
 	if len(s.Cols) > 0 {
 		panic(ErrGetDataOfMerged)
 	}
-	res, val := s.objVal("add", obj)
+	res, val := s.objVal("_add", obj)
 	return res.Append(s.Get(0) + val)
 }
 
@@ -155,7 +155,7 @@ func (s *Series) Sub(obj interface{}) *Series {
 	if len(s.Cols) > 0 {
 		panic(ErrGetDataOfMerged)
 	}
-	res, val := s.objVal("sub", obj)
+	res, val := s.objVal("_sub", obj)
 	return res.Append(s.Get(0) - val)
 }
 
@@ -163,7 +163,7 @@ func (s *Series) Mul(obj interface{}) *Series {
 	if len(s.Cols) > 0 {
 		panic(ErrGetDataOfMerged)
 	}
-	res, val := s.objVal("mul", obj)
+	res, val := s.objVal("_mul", obj)
 	return res.Append(s.Get(0) * val)
 }
 
@@ -171,7 +171,7 @@ func (s *Series) Abs() *Series {
 	if len(s.Cols) > 0 {
 		panic(ErrGetDataOfMerged)
 	}
-	res := s.To("abs", 0)
+	res := s.To("_abs", 0)
 	res.Append(math.Abs(s.Get(0)))
 	return res
 }
@@ -203,7 +203,7 @@ func (s *Series) Cut(keepNum int) {
 }
 
 func (s *Series) Back(num int) *Series {
-	res := s.To("back", num)
+	res := s.To("_back", num)
 	if !res.Cached() {
 		endPos := len(s.Data) - num
 		if endPos > 0 {

@@ -10,7 +10,7 @@ import (
 AvgPrice 平均价格=(h+l+c)/3
 */
 func AvgPrice(e *BarEnv) *Series {
-	res := e.Close.To("avgp", 0)
+	res := e.Close.To("_avgp", 0)
 	if res.Cached() {
 		return res
 	}
@@ -24,7 +24,7 @@ type sumState struct {
 }
 
 func Sum(obj *Series, period int) *Series {
-	res := obj.To("sum", period)
+	res := obj.To("_sum", period)
 	if res.Cached() {
 		return res
 	}
@@ -60,7 +60,7 @@ func Sum(obj *Series, period int) *Series {
 }
 
 func SMA(obj *Series, period int) *Series {
-	res := obj.To("sma", period)
+	res := obj.To("_sma", period)
 	if res.Cached() {
 		return res
 	}
@@ -82,7 +82,7 @@ VWMA 成交量加权平均价格
 公式：sum(price*volume)/sum(volume)
 */
 func VWMA(price *Series, vol *Series, period int) *Series {
-	res := price.To("vwma", period)
+	res := price.To("_vwma", period)
 	if res.Cached() {
 		return res
 	}
@@ -148,7 +148,7 @@ EMABy 指数移动均线
 initType：0使用SMA初始化，1第一个有效值初始化
 */
 func EMABy(obj *Series, period int, initType int) *Series {
-	res := obj.To("ema", period*10+initType)
+	res := obj.To("_ema", period*10+initType)
 	alpha := 2.0 / float64(period+1)
 	return ewma(obj, res, period, alpha, initType, math.NaN())
 }
@@ -177,13 +177,13 @@ func RMABy(obj *Series, period int, initType int, initVal float64) *Series {
 	if !math.IsNaN(initVal) {
 		hash += int(initVal)
 	}
-	res := obj.To("rma", hash)
+	res := obj.To("_rma", hash)
 	alpha := 1.0 / float64(period)
 	return ewma(obj, res, period, alpha, initType, initVal)
 }
 
 func TR(high *Series, low *Series, close *Series) *Series {
-	res := high.To("tr", 0)
+	res := high.To("_tr", 0)
 	if res.Cached() {
 		return res
 	}
@@ -209,7 +209,7 @@ func MACD(obj *Series, fast int, slow int, smooth int) *Series {
 }
 
 func MACDBy(obj *Series, fast int, slow int, smooth int, initType int) *Series {
-	res := obj.To("macd", fast*1000+slow*100+smooth*10+initType)
+	res := obj.To("_macd", fast*1000+slow*100+smooth*10+initType)
 	if res.Cached() {
 		return res
 	}
@@ -221,7 +221,7 @@ func MACDBy(obj *Series, fast int, slow int, smooth int, initType int) *Series {
 }
 
 func rsi(obj *Series, period int, subVal float64) *Series {
-	res := obj.To("rsi", period*100+int(subVal))
+	res := obj.To("_rsi", period*100+int(subVal))
 	if res.Cached() {
 		return res
 	}
@@ -275,7 +275,7 @@ func RSI50(obj *Series, period int) *Series {
 }
 
 func Highest(obj *Series, period int) *Series {
-	res := obj.To("hh", period)
+	res := obj.To("_hh", period)
 	if res.Cached() {
 		return res
 	}
@@ -287,7 +287,7 @@ func Highest(obj *Series, period int) *Series {
 }
 
 func HighestBar(obj *Series, period int) *Series {
-	res := obj.To("hhb", period)
+	res := obj.To("_hhb", period)
 	if res.Cached() {
 		return res
 	}
@@ -306,7 +306,7 @@ func HighestBar(obj *Series, period int) *Series {
 }
 
 func Lowest(obj *Series, period int) *Series {
-	res := obj.To("ll", period)
+	res := obj.To("_ll", period)
 	if res.Cached() {
 		return res
 	}
@@ -318,7 +318,7 @@ func Lowest(obj *Series, period int) *Series {
 }
 
 func LowestBar(obj *Series, period int) *Series {
-	res := obj.To("llb", period)
+	res := obj.To("_llb", period)
 	if res.Cached() {
 		return res
 	}
@@ -352,11 +352,11 @@ var (
 
 func KDJBy(high *Series, low *Series, close *Series, period int, sm1 int, sm2 int, maBy string) *Series {
 	byVal, _ := kdjTypes[maBy]
-	res := high.To("kdj", period*100000+sm1*1000+sm2*10+byVal)
+	res := high.To("_kdj", period*100000+sm1*1000+sm2*10+byVal)
 	if res.Cached() {
 		return res
 	}
-	rsv := high.To("rsv", period)
+	rsv := high.To("_rsv", period)
 	if !rsv.Cached() {
 		hhigh := Highest(high, period).Get(0)
 		llow := Lowest(low, period).Get(0)
@@ -388,7 +388,7 @@ Osc: AroonUp - AroonDn
 返回：AroonUp, Osc, AroonDn
 */
 func Aroon(high *Series, low *Series, period int) *Series {
-	res := high.To("aroon", period)
+	res := high.To("_aroon", period)
 	if res.Cached() {
 		return res
 	}
@@ -414,7 +414,7 @@ func StdDev(obj *Series, period int) *Series {
 返回：stddev，mean
 */
 func StdDevBy(obj *Series, period int, ddof int) *Series {
-	res := obj.To("sdev", period*10+ddof)
+	res := obj.To("_sdev", period*10+ddof)
 	if res.Cached() {
 		return res
 	}
@@ -445,7 +445,7 @@ func StdDevBy(obj *Series, period int, ddof int) *Series {
 
 // BBANDS 布林带指标。返回：upper, mean, lower
 func BBANDS(obj *Series, period int, stdUp, stdDn float64) *Series {
-	res := obj.To("bb", period*10000+int(stdUp*1000)+int(stdDn*10))
+	res := obj.To("_bb", period*10000+int(stdUp*1000)+int(stdDn*10))
 	if res.Cached() {
 		return res
 	}
@@ -467,7 +467,7 @@ func BBANDS(obj *Series, period int, stdUp, stdDn float64) *Series {
 9和13表示超买；-9和-13表示超卖
 */
 func TD(obj *Series) *Series {
-	res := obj.To("td", 0)
+	res := obj.To("_td", 0)
 	if res.Cached() {
 		return res
 	}
@@ -505,8 +505,8 @@ type AdxState struct {
 */
 func ADX(high *Series, low *Series, close *Series, period int) *Series {
 	// 初始化相关的系列
-	dx := close.To("dx", period)
-	adx := close.To("adx", period)
+	dx := close.To("_dx", period)
+	adx := close.To("_adx", period)
 
 	// 计算 DMH 和 DML
 	dmhVal := high.Get(0) - high.Get(1)
@@ -559,7 +559,7 @@ func ADX(high *Series, low *Series, close *Series, period int) *Series {
 ROC rate of change
 */
 func ROC(obj *Series, period int) *Series {
-	res := obj.To("roc", period)
+	res := obj.To("_roc", period)
 	if res.Cached() {
 		return res
 	}
@@ -570,15 +570,15 @@ func ROC(obj *Series, period int) *Series {
 
 // HeikinAshi 计算Heikin-Ashi
 func HeikinAshi(e *BarEnv) *Series {
-	res := e.Close.To("heikin", 0)
+	res := e.Close.To("_heikin", 0)
 	if res.Cached() {
 		return res
 	}
 
-	ho := e.Open.To("hka", 0)
-	hh := e.High.To("hka", 0)
-	hl := e.Low.To("hka", 0)
-	hc := e.Close.To("hka", 0)
+	ho := e.Open.To("_hka", 0)
+	hh := e.High.To("_hka", 0)
+	hl := e.Low.To("_hka", 0)
+	hc := e.Close.To("_hka", 0)
 
 	o, h, l, c := e.Open.Get(0), e.High.Get(0), e.Low.Get(0), e.Close.Get(0)
 
