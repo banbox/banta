@@ -148,6 +148,9 @@ func (s *Series) Add(obj interface{}) *Series {
 		panic(ErrGetDataOfMerged)
 	}
 	res, val := s.objVal("_add", obj)
+	if res.Cached() {
+		return res
+	}
 	return res.Append(s.Get(0) + val)
 }
 
@@ -156,6 +159,9 @@ func (s *Series) Sub(obj interface{}) *Series {
 		panic(ErrGetDataOfMerged)
 	}
 	res, val := s.objVal("_sub", obj)
+	if res.Cached() {
+		return res
+	}
 	return res.Append(s.Get(0) - val)
 }
 
@@ -164,6 +170,9 @@ func (s *Series) Mul(obj interface{}) *Series {
 		panic(ErrGetDataOfMerged)
 	}
 	res, val := s.objVal("_mul", obj)
+	if res.Cached() {
+		return res
+	}
 	return res.Append(s.Get(0) * val)
 }
 
@@ -172,6 +181,9 @@ func (s *Series) Abs() *Series {
 		panic(ErrGetDataOfMerged)
 	}
 	res := s.To("_abs", 0)
+	if res.Cached() {
+		return res
+	}
 	res.Append(math.Abs(s.Get(0)))
 	return res
 }
