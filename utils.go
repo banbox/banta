@@ -56,3 +56,15 @@ func equalIn(a, b, thres float64) bool {
 	}
 	return math.Abs(a-b) <= thres
 }
+
+func RemoveFromArr[T comparable](arr []T, it T, num int) []T {
+	res := make([]T, 0, len(arr))
+	for _, v := range arr {
+		if v == it && (num < 0 || num > 0) {
+			num -= 1
+			continue
+		}
+		res = append(res, v)
+	}
+	return res
+}
