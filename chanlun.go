@@ -29,6 +29,11 @@ const (
 	CLInit    = 0 // 尚未确认有效
 	CLValid   = 1 // 确认有效，尚未完成
 	CLDone    = 2 // 确认有效，已完成，不会再改
+
+	ParseLevelPen    = 1
+	ParseLevelSeg    = 2
+	ParseLevelCentre = 3
+	ParseLevelTrend  = 4
 )
 
 const (
@@ -101,18 +106,19 @@ type CTrend struct {
 }
 
 type CGraph struct {
-	Pens     []*CPen
-	Segs     []*CSeg
-	Trends   []*CTrend
-	Bars     []*Kline
-	Centres  []*CCentre
-	OnPoint  func(p *CPoint, evt int)
-	OnPen    func(p *CPen, evt int)
-	OnSeg    func(p *CSeg, evt int)
-	OnCentre func(c *CCentre, evt int)
-	BarNum   int     // 最后一个bar的序号，从1开始
-	parseTo  int     // 解析到K线的位置，序号，非索引
-	point    *CPoint // 最新一个点，用于查找最新的笔
+	Pens       []*CPen
+	Segs       []*CSeg
+	Trends     []*CTrend
+	Bars       []*Kline
+	Centres    []*CCentre
+	OnPoint    func(p *CPoint, evt int)
+	OnPen      func(p *CPen, evt int)
+	OnSeg      func(p *CSeg, evt int)
+	OnCentre   func(c *CCentre, evt int)
+	BarNum     int     // 最后一个bar的序号，从1开始
+	ParseLevel int     // 期望解析到的等级，0不限制
+	parseTo    int     // 解析到K线的位置，序号，非索引
+	point      *CPoint // 最新一个点，用于查找最新的笔
 }
 
 type DrawLine struct {
@@ -411,6 +417,11 @@ func (s *CSeg) IsValid() bool {
 }
 
 func (s *CSeg) fireDone() {
+	c := s.Graph
+	if c.ParseLevel > 0 && c.ParseLevel < ParseLevelCentre {
+		// 不解析到中枢，退出
+		return
+	}
 	if s.State < CLDone || s.Prev == nil || s.Prev.Prev == nil || len(s.Graph.Segs) < 4 {
 		return
 	}
@@ -592,7 +603,9 @@ func (c *CGraph) AddPen(pen *CPen) {
 	if c.OnPoint != nil {
 		c.OnPoint(pen.End, EvtNew)
 	}
-	c.buildSegs()
+	if c.ParseLevel == 0 || c.ParseLevel >= ParseLevelSeg {
+		c.buildSegs()
+	}
 }
 
 func (c *CGraph) AddSeg(seg *CSeg) {
@@ -676,9 +689,14 @@ func (c *CGraph) AddBars(barId int, bars ...*Kline) *CGraph {
 }
 
 func (c *CGraph) Parse() {
-	barLen := len(c.Bars)
-	if barLen < 3 {
+	if c.parseTo+2 >= c.BarNum {
+		// 至少需要2个待解析的
 		return
+	}
+	barLen := len(c.Bars)
+	if c.parseTo == 0 {
+		//从第二个开始处理（因为需要前一个bar）
+		c.parseTo = c.BarNum - barLen + 1
 	}
 	var pv, pv2 *CPoint
 	if len(c.Pens) > 0 {
@@ -694,17 +712,10 @@ func (c *CGraph) Parse() {
 		b := c.Bar(pv.BarId)
 		gapPrice = b.Low*0.5 + b.High*0.5
 	}
-	// 第一个待解析bar的索引
-	startIdx := barLen - (c.BarNum - 1 - c.parseTo)
-	if c.parseTo == 0 {
-		//从第二个开始处理（因为需要前一个bar）
-		startIdx = 1
-		c.parseTo = 1
-	}
 	// 前一个节点的价格，用于判断当前大概趋势，节点更新时更新
-	for i := startIdx; i < barLen-1; i++ {
+	for c.parseTo+1 < c.BarNum {
 		c.parseTo += 1
-		pb, cb, nb := c.Bar(i), c.Bar(i+1), c.Bar(i+2)
+		pb, cb, nb := c.Bar(c.parseTo-1), c.Bar(c.parseTo), c.Bar(c.parseTo+1)
 		vhigh, vlow := cb.High, cb.Low
 		// 这里是为了处理突然一个特别长的bar包含前面所有bar的情况，从前面价格的向上向下距离确定取高还是取低
 		isUp := vhigh > stPrice && (vhigh-stPrice >= stPrice-vlow)
