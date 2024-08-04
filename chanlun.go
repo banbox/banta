@@ -34,6 +34,8 @@ const (
 	ParseLevelSeg    = 2
 	ParseLevelCentre = 3
 	ParseLevelTrend  = 4
+
+	DefMaxPen = 1000 // 默认保存的最大笔数量
 )
 
 const (
@@ -43,7 +45,7 @@ const (
 )
 
 var (
-	debugCL = true
+	debugCL = false
 )
 
 type CPoint struct {
@@ -117,7 +119,8 @@ type CGraph struct {
 	OnCentre   func(c *CCentre, evt int)
 	BarNum     int     // 最后一个bar的序号，从1开始
 	ParseLevel int     // 期望解析到的等级，0不限制
-	parseTo    int     // 解析到K线的位置，序号，非索引
+	ParseTo    int     // 解析到K线的位置，序号，非索引
+	MaxPen     int     // 保存最大笔数量，默认1000
 	point      *CPoint // 最新一个点，用于查找最新的笔
 }
 
@@ -132,7 +135,7 @@ func setDebug(val bool) {
 	debugCL = val
 }
 
-func (p *CPoint) Move(barId int, price float64) {
+func (p *CPoint) Move(barId int, price float64) *CPoint {
 	if p.BarId != barId || p.Price != price {
 		if debugCL {
 			log.Printf("point move %s -> (%v, %.3f)\n", p.StrPoint(), barId, price)
@@ -171,6 +174,7 @@ func (p *CPoint) Move(barId int, price float64) {
 			c.OnPen(p.EndPen, EvtChange)
 		}
 	}
+	return p
 }
 
 func (p *CPoint) PenTo(other *CPoint) *CPen {
@@ -187,10 +191,10 @@ func (p *CPoint) State() int {
 	if p.Next != nil {
 		return CLDone
 	}
-	if p.Graph.parseTo-p.BarId < MinPenLen-1 {
+	if p.Graph.ParseTo-p.BarId < MinPenLen-1 {
 		return CLInit
 	}
-	lastB := p.Graph.Bar(p.Graph.parseTo)
+	lastB := p.Graph.Bar(p.Graph.ParseTo)
 	if p.Dirt > 0 && lastB.High < p.Price {
 		// 顶分型，最新价格低于顶分型最高价，有效
 		return CLDone
@@ -247,6 +251,22 @@ func (p *CPoint) StrPoint() string {
 	return fmt.Sprintf("(%v, %.3f)", p.BarId, p.Price)
 }
 
+func (p *CPoint) Clone() *CPoint {
+	return &CPoint{
+		Graph:      p.Graph,
+		Dirt:       p.Dirt,
+		BarId:      p.BarId,
+		Price:      p.Price,
+		StartPen:   p.StartPen,
+		EndPen:     p.EndPen,
+		StartSeg:   p.StartSeg,
+		EndSeg:     p.EndSeg,
+		StartTrend: p.StartTrend,
+		EndTrend:   p.EndTrend,
+		Next:       p.Next,
+	}
+}
+
 func (p *CTwoPoint) ToFeature() [2]float64 {
 	var a, b = p.Start.Price, p.End.Price
 	if a > b {
@@ -281,6 +301,20 @@ func (p *CPen) Clear() {
 	if p.Next != nil {
 		p.Next.Prev = p.Prev
 		p.Next = nil
+	}
+}
+
+func (p *CPen) Clone() *CPen {
+	return &CPen{
+		CTwoPoint: &CTwoPoint{
+			Graph: p.Graph,
+			Start: p.Start,
+			End:   p.End,
+			State: p.State,
+		},
+		Dirt: p.Dirt,
+		Prev: p.Prev,
+		Next: p.Next,
 	}
 }
 
@@ -541,7 +575,7 @@ NewPoint 返回新点，不添加到Points
 */
 func (c *CGraph) NewPoint(dirt float64, price float64, barId int) *CPoint {
 	if barId == 0 {
-		barId = c.parseTo
+		barId = c.ParseTo
 	}
 	return &CPoint{
 		Graph: c,
@@ -606,6 +640,7 @@ func (c *CGraph) AddPen(pen *CPen) {
 	if c.ParseLevel == 0 || c.ParseLevel >= ParseLevelSeg {
 		c.buildSegs()
 	}
+	c.checkPenNum()
 }
 
 func (c *CGraph) AddSeg(seg *CSeg) {
@@ -669,6 +704,9 @@ func (c *CGraph) Remove(o interface{}) bool {
 }
 
 func (c *CGraph) AddBar(e *BarEnv) *CGraph {
+	if c.BarNum >= e.BarNum {
+		return c
+	}
 	c.Bars = append(c.Bars, &Kline{
 		Time:   e.TimeStart,
 		Open:   e.Open.Get(0),
@@ -688,15 +726,28 @@ func (c *CGraph) AddBars(barId int, bars ...*Kline) *CGraph {
 	return c
 }
 
+func (c *CGraph) checkPenNum() {
+	if c.MaxPen == 0 {
+		c.MaxPen = DefMaxPen
+	}
+	if len(c.Pens) > c.MaxPen*3/2 {
+		c.Pens = c.Pens[len(c.Pens)-c.MaxPen:]
+		keepBar := c.BarNum - c.Pens[0].Start.BarId + 5
+		if len(c.Bars) > keepBar {
+			c.Bars = c.Bars[len(c.Bars)-keepBar:]
+		}
+	}
+}
+
 func (c *CGraph) Parse() {
-	if c.parseTo+2 >= c.BarNum {
+	if c.ParseTo+1 >= c.BarNum {
 		// 至少需要2个待解析的
 		return
 	}
 	barLen := len(c.Bars)
-	if c.parseTo == 0 {
+	if c.ParseTo == 0 {
 		//从第二个开始处理（因为需要前一个bar）
-		c.parseTo = c.BarNum - barLen + 1
+		c.ParseTo = c.BarNum - barLen + 1
 	}
 	var pv, pv2 *CPoint
 	if len(c.Pens) > 0 {
@@ -713,17 +764,17 @@ func (c *CGraph) Parse() {
 		gapPrice = b.Low*0.5 + b.High*0.5
 	}
 	// 前一个节点的价格，用于判断当前大概趋势，节点更新时更新
-	for c.parseTo+1 < c.BarNum {
-		c.parseTo += 1
-		pb, cb, nb := c.Bar(c.parseTo-1), c.Bar(c.parseTo), c.Bar(c.parseTo+1)
+	for c.ParseTo+1 < c.BarNum {
+		c.ParseTo += 1
+		pb, cb, nb := c.Bar(c.ParseTo-1), c.Bar(c.ParseTo), c.Bar(c.ParseTo+1)
 		vhigh, vlow := cb.High, cb.Low
 		// 这里是为了处理突然一个特别长的bar包含前面所有bar的情况，从前面价格的向上向下距离确定取高还是取低
 		isUp := vhigh > stPrice && (vhigh-stPrice >= stPrice-vlow)
 		var pt *CPoint
 		if isUp && vhigh > max(pb.High, nb.High) {
-			pt = c.NewPoint(1, vhigh, c.parseTo)
+			pt = c.NewPoint(1, vhigh, c.ParseTo)
 		} else if !isUp && vlow < min(pb.Low, nb.Low) {
-			pt = c.NewPoint(-1, vlow, c.parseTo)
+			pt = c.NewPoint(-1, vlow, c.ParseTo)
 		} else {
 			continue
 		}

@@ -18,7 +18,6 @@ var env = &BarEnv{
 	TFMSecs:    86400000,
 	Exchange:   "binance",
 	MarketType: "future",
-	BarNum:     1,
 }
 
 func runIndCases(t *testing.T, items []CaseItem) {
