@@ -596,3 +596,40 @@ func HeikinAshi(e *BarEnv) *Series {
 
 	return res.Append([]*Series{ho, hh, hl, hc})
 }
+
+type tnrState struct {
+	arr    []float64
+	sumVal float64
+}
+
+// TNR Trend to Noise Ratio
+func TNR(obj *Series, period int) *Series {
+	res := obj.To("_tnr", period)
+	if res.Cached() {
+		return res
+	}
+	curVal := math.Abs(obj.Get(0) - obj.Get(1))
+	sta, _ := res.More.(*tnrState)
+	if sta == nil {
+		sta = &tnrState{}
+		res.More = sta
+	}
+	var resVal = math.NaN()
+	if math.IsNaN(curVal) {
+		sta.arr = make([]float64, 0)
+		sta.sumVal = 0
+	} else {
+		sta.sumVal += curVal
+		if len(sta.arr) < period {
+			sta.arr = append(sta.arr, curVal)
+		} else {
+			sta.sumVal -= sta.arr[0]
+			sta.arr = append(sta.arr[1:], curVal)
+			if sta.sumVal > 0 {
+				diffVal := math.Abs(obj.Get(0) - obj.Get(period))
+				resVal = diffVal / sta.sumVal
+			}
+		}
+	}
+	return res.Append(resVal)
+}

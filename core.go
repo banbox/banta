@@ -82,7 +82,8 @@ func (s *Series) Set(obj interface{}) *Series {
 
 func (s *Series) Append(obj interface{}) *Series {
 	if s.Time >= s.Env.TimeStop {
-		panic(ErrRepeatAppend)
+		panic(fmt.Sprintf("repeat append on Series, %s, %v -> %v",
+			s.Env.Symbol, s.Time, s.Env.TimeStop))
 	}
 	s.Time = s.Env.TimeStop
 	if val, ok := obj.(float64); ok {

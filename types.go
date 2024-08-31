@@ -5,7 +5,6 @@ import "errors"
 var (
 	ErrInvalidSeriesVal = errors.New("invalid val for Series")
 	ErrGetDataOfMerged  = errors.New("try get Data of merged series var")
-	ErrRepeatAppend     = errors.New("repeat append on Series")
 )
 
 type Kline struct {
