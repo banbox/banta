@@ -1,7 +1,7 @@
 # Ban Technical Analysis
 [中文文档](./readme.cn.md)  
 
-This is an event-based technical analysis calculation library. Each candlestick is calculated and cached, and the calculation results of the indicators are reused globally.
+**banta** is an event-based technical analysis framework. It updates and caches indicators on each K-line, and the indicator calculation results are reused globally. It aims to provide a **high degree of freedom**, **high performance**, **simple and easy-to-use** indicator framework.
 
 ## Core Concept
 Traditional technical analysis libraries such as `ta-lib` and `pandas-ta` are very popular and have undergone a lot of performance optimization. They are very fast when calculating hundreds or thousands of candlesticks at a time.
@@ -20,6 +20,42 @@ The most commonly used `e.Close` is the closing price sequence. `e.Close.Get(0)`
 Calculating the average is also simple: `ma5 := ta.SMA(e.Close, 5)`, the returned ma5 is also a sequence;
 
 Some indicators such as KDJ generally return two fields k and d `kdjRes := ta.KDJ(e.High, e.Low, e.Close, 9, 3, 3).Cols`, you can get an array of two sequences from Cols.
+
+## Supported indicators
+#### Comparison of consistency with common indicator platform results
+| banta    | MyTT | TA-lib Class | TA-lib Metastock | Pandas-TA | TradingView |
+|----------|:----:|:------------:|:----------------:|:---------:|:-----------:| 
+| AvgPrice |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
+| Sum      |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
+| SMA      |  T1  |      ✔       |        ✔         |     ✔     |      ✔      |
+| EMA      |  T1  |      T1      |        ✔         |     ✔     |     T2      |
+| EMABy1   |  ✔   |      T1      |        T2        |    T2     |     T3      |
+| RMA      |  --  |      --      |        --        |    T1     |     --      |
+| VWMA     |  --  |      --      |        --        |     ✔     |      ✔      |
+| TR       |  --  |      ✔       |        ✔         |     ✔     |     --      |
+| ATR      |  T1  |      ✔       |        ✔         |    T2     |     T3      |
+| MACD     |  T1  |      T2      |        T1        |     ✔     |     T3      |
+| RSI      |  T1  |      ✔       |        ✔         |    T2     |     T3      |
+| KDJ      |  T1  |      T2      |        T1        |    T3     |      ✔      |
+| BBANDS   |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
+| Aroon    |  --  |      ✔       |        ✔         |     ✔     |     T1      |
+| ADX      |  --  |      ✔       |        ✔         |    T1     |     T2      |
+| ADXBy1   |  --  |      T1      |        T1        |    T2     |      ✔      |
+| ROC      |  ✔   |      ✔       |        ✔         |    --     |      ✔      |
+| TNR/ER   |  --  |      --      |        --        |    --     |     --      |
+| CCI      |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
+| CMF      |  --  |      --      |        --        |     ✔     |      ✔      |
+| KAMA     |  --  |      ✔~      |        ✔~        |    T1     |     ✔~      |
+| WillR    |  --  |      ✔       |        ✔         |     ✔     |      ✔      |
+| StochRSI |  --  |      ✔       |        ✔         |     ✔     |     ✔~      |
+| MFI      |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
+| RMI      |  --  |      --      |        --        |    --     |     ✔~      |
+```text
+-- This platform does not have this indicator
+✔ The calculation results are consistent with this platform
+✔~ The calculation results are basically consistent with this platform (with some deviation)
+Ti The calculation results are inconsistent with this platform
+```
 
 ## How to Use
 ```go

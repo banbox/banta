@@ -7,7 +7,7 @@ import (
 )
 
 /*
-AvgPrice 平均价格=(h+l+c)/3
+AvgPrice typical price=(h+l+c)/3
 */
 func AvgPrice(e *BarEnv) *Series {
 	res := e.Close.To("_avgp", 0)
@@ -220,7 +220,7 @@ func MACDBy(obj *Series, fast int, slow int, smooth int, initType int) *Series {
 	return res.Append([]*Series{macd, signal})
 }
 
-func rsi(obj *Series, period int, subVal float64) *Series {
+func rsiBy(obj *Series, period int, subVal float64) *Series {
 	res := obj.To("_rsi", period*100+int(subVal))
 	if res.Cached() {
 		return res
@@ -266,12 +266,12 @@ func rsi(obj *Series, period int, subVal float64) *Series {
 
 // RSI 计算相对强度指数
 func RSI(obj *Series, period int) *Series {
-	return rsi(obj, period, 0)
+	return rsiBy(obj, period, 0)
 }
 
 // RSI50 计算相对强度指数-50
 func RSI50(obj *Series, period int) *Series {
-	return rsi(obj, period, 50)
+	return rsiBy(obj, period, 50)
 }
 
 func Highest(obj *Series, period int) *Series {
@@ -402,7 +402,7 @@ func Aroon(high *Series, low *Series, period int) *Series {
 /*
 	StdDev 计算标准差和均值
 
-返回：stddev，mean
+返回：stddev，sumVal
 */
 func StdDev(obj *Series, period int) *Series {
 	return StdDevBy(obj, period, 0)
@@ -411,7 +411,7 @@ func StdDev(obj *Series, period int) *Series {
 /*
 	StdDevBy 计算标准差和均值
 
-返回：stddev，mean
+返回：stddev，sumVal
 */
 func StdDevBy(obj *Series, period int, ddof int) *Series {
 	res := obj.To("_sdev", period*10+ddof)
@@ -443,7 +443,7 @@ func StdDevBy(obj *Series, period int, ddof int) *Series {
 	return res.Append([]float64{stdDevVal, meanVal})
 }
 
-// BBANDS 布林带指标。返回：upper, mean, lower
+// BBANDS 布林带指标。返回：upper, sumVal, lower
 func BBANDS(obj *Series, period int, stdUp, stdDn float64) *Series {
 	res := obj.To("_bb", period*10000+int(stdUp*1000)+int(stdDn*10))
 	if res.Cached() {
@@ -489,24 +489,33 @@ func TD(obj *Series) *Series {
 	return res.Append(step)
 }
 
-type AdxState struct {
-	Num    int     // 计算次数
-	DmHSum float64 // 缓存初始DmH的和
-	DmLSum float64 // 缓存初始DmL的和
-	DmHMA  float64 // 缓存DMH的均值
-	DmLMA  float64 // 缓存DML的均值
-	TRMA   float64 // 缓存TR的均值
+/*
+ADX Average Directional Index
+*/
+func ADX(high *Series, low *Series, close *Series, period int) *Series {
+	return ADXBy(high, low, close, period, 0)
+}
+
+type adxState struct {
+	Num     int     // 计算次数
+	DmPosMA float64 // 缓存DMPos的均值
+	DmNegMA float64 // 缓存DMNeg的均值
+	TRMA    float64 // 缓存TR的均值
 }
 
 /*
-	ADX 计算平均趋向指标
+	ADXBy Average Directional Index
 
-参考TradingView的社区ADX指标。与tdlib略有不同
+method=0 classic ADX
+method=1 TradingView "ADX and DI for v4"
 */
-func ADX(high *Series, low *Series, close *Series, period int) *Series {
+func ADXBy(high *Series, low *Series, close *Series, period int, method int) *Series {
 	// 初始化相关的系列
-	dx := close.To("_dx", period)
-	adx := close.To("_adx", period)
+	dx := close.To("_dx", period*1000+method)
+	adx := close.To("_adx", period*1000+method)
+	if adx.Cached() {
+		return adx
+	}
 
 	// 计算 DMH 和 DML
 	dmhVal := high.Get(0) - high.Get(1)
@@ -519,40 +528,55 @@ func ADX(high *Series, low *Series, close *Series, period int) *Series {
 	}
 
 	// 计算 TR
-	tr := TR(high, low, close)
-	var state *AdxState
-	if adx.More == nil {
-		state = &AdxState{}
+	tr := TR(high, low, close).Get(0)
+	state, _ := adx.More.(*adxState)
+	if state == nil {
+		state = &adxState{}
 		adx.More = state
-	} else {
-		state = adx.More.(*AdxState)
 	}
 	state.Num += 1
+	if math.IsNaN(tr) && math.IsNaN(close.Get(0)) {
+		state.Num = 1
+	}
 
-	if state.Num <= period+1 {
-		state.DmHSum += plusDM
-		state.DmLSum += minusDM
-		if tr.Len() > 1 {
-			state.TRMA += tr.Get(0)
+	// calc Wilder's smoothing of DmH/DmL/TR
+	alpha := 1 / float64(period)
+	initLen := period
+	if method == 1 {
+		initLen = period + 1
+	}
+	if state.Num <= initLen {
+		if math.IsNaN(tr) {
+			state.DmPosMA = 0
+			state.DmNegMA = 0
+			state.TRMA = 0
+		} else {
+			state.DmPosMA += plusDM
+			state.DmNegMA += minusDM
+			state.TRMA += tr
 		}
 		if state.Num <= period {
 			dx.Append(math.NaN())
 			return adx.Append([]float64{math.NaN(), math.NaN(), math.NaN()})
 		}
-		state.DmHMA = state.DmHSum
-		state.DmLMA = state.DmLSum
 	} else {
-		state.DmHMA = state.DmHMA*(1-1/float64(period)) + plusDM
-		state.DmLMA = state.DmLMA*(1-1/float64(period)) + minusDM
-		state.TRMA = state.TRMA*(1-1/float64(period)) + tr.Get(0)
+		state.DmPosMA = state.DmPosMA*(1-alpha) + plusDM
+		state.DmNegMA = state.DmNegMA*(1-alpha) + minusDM
+		state.TRMA = state.TRMA*(1-alpha) + tr
 	}
 
-	plusDI := 100 * state.DmHMA / state.TRMA
-	minusDI := 100 * state.DmLMA / state.TRMA
+	// calc dx
+	plusDI := 100 * state.DmPosMA / state.TRMA
+	minusDI := 100 * state.DmNegMA / state.TRMA
 	dx.Append(math.Abs(plusDI-minusDI) / (plusDI + minusDI) * 100)
 
-	smaDX := SMA(dx, period).Get(0)
-	return adx.Append([]float64{smaDX, plusDI, minusDI})
+	var maDX float64
+	if method == 0 {
+		maDX = RMA(dx, period).Get(0)
+	} else {
+		maDX = SMA(dx, period).Get(0)
+	}
+	return adx.Append([]float64{maDX, plusDI, minusDI})
 }
 
 /*
@@ -602,7 +626,7 @@ type tnrState struct {
 	sumVal float64
 }
 
-// TNR Trend to Noise Ratio
+// TNR Trend to Noise Ratio / Efficiency Ratio
 func TNR(obj *Series, period int) *Series {
 	res := obj.To("_tnr", period)
 	if res.Cached() {
@@ -632,4 +656,294 @@ func TNR(obj *Series, period int) *Series {
 		}
 	}
 	return res.Append(resVal)
+}
+
+// AvgDev sum(abs(Vi - mean))/period
+func AvgDev(obj *Series, period int) *Series {
+	res := obj.To("_avgdev", period)
+	if res.Cached() {
+		return res
+	}
+
+	sma := SMA(obj, period)
+	sumDev := 0.0
+
+	for i := 0; i < period; i++ {
+		sumDev += math.Abs(obj.Get(i) - sma.Get(0))
+	}
+
+	avgDev := sumDev / float64(period)
+
+	return res.Append(avgDev)
+}
+
+/*
+	CCI Commodity Channel Index
+
+https://www.tradingview.com/support/solutions/43000502001-commodity-channel-index-cci/
+*/
+func CCI(obj *Series, period int) *Series {
+	res := obj.To("_cci", period)
+	if res.Cached() {
+		return res
+	}
+	sma := SMA(obj, period)
+	meanDev := AvgDev(obj, period)
+
+	cciValue := (obj.Get(0) - sma.Get(0)) / (0.015 * meanDev.Get(0))
+
+	return res.Append(cciValue)
+}
+
+func moneyFlowVol(env *BarEnv) (float64, float64) {
+	// Retrieve the latest values
+	closeVal := env.Close.Get(0)
+	high := env.High.Get(0)
+	low := env.Low.Get(0)
+	volume := env.Volume.Get(0)
+
+	var multiplier float64
+
+	// Money Flow Multiplier = [(Close - Low) - (High - Close)] / (High - Low)
+	if high > low {
+		multiplier = ((closeVal - low) - (high - closeVal)) / (high - low)
+	}
+
+	// Money Flow Volume = Money Flow Multiplier x Volume
+	return multiplier, volume
+}
+
+type cmfState struct {
+	mfSum    []float64
+	volSum   []float64
+	sumMfVal float64
+	sumVol   float64
+}
+
+/*
+CMF Chaikin Money Flow
+https://www.tradingview.com/scripts/chaikinmoneyflow/?solution=43000501974
+*/
+func CMF(env *BarEnv, period int) *Series {
+	res := env.Close.To("_cmf", period)
+	if res.Cached() {
+		return res
+	}
+
+	multiplier, volume := moneyFlowVol(env)
+	mfVolume := multiplier * volume
+
+	sta, _ := res.More.(*cmfState)
+	if sta == nil {
+		sta = &cmfState{}
+		res.More = sta
+	}
+
+	var resVal = math.NaN()
+	if math.IsNaN(mfVolume) || math.IsNaN(volume) || volume == 0 {
+		sta.mfSum = make([]float64, 0)
+		sta.volSum = make([]float64, 0)
+		sta.sumMfVal = 0
+		sta.sumVol = 0
+	} else {
+		// Sum the Money Flow Volumes and Volumes over the period
+		sta.sumMfVal += mfVolume
+		sta.sumVol += volume
+
+		if len(sta.mfSum) < period {
+			sta.mfSum = append(sta.mfSum, mfVolume)
+			sta.volSum = append(sta.volSum, volume)
+		} else {
+			sta.sumMfVal -= sta.mfSum[0]
+			sta.mfSum = append(sta.mfSum[1:], mfVolume)
+
+			sta.sumVol -= sta.volSum[0]
+			sta.volSum = append(sta.volSum[1:], volume)
+			if sta.sumVol > 0 {
+				// Calculate CMF = Sum(Money Flow Volume) / Sum(Volume)
+				resVal = sta.sumMfVal / sta.sumVol
+			}
+		}
+	}
+	return res.Append(resVal)
+}
+
+// ADL Accumulation/Distribution Line
+func ADL(env *BarEnv) *Series {
+	adl := env.Close.To("_adl", 0)
+	if adl.Cached() {
+		return adl
+	}
+	multiplier, volume := moneyFlowVol(env)
+	mfVolume := multiplier * volume
+
+	adlValue := mfVolume
+	if adl.Len() > 0 {
+		adlValue += adl.Get(0)
+	}
+	return adl.Append(adlValue)
+}
+
+/*
+ChaikinOsc
+https://www.tradingview.com/support/solutions/43000501979-chaikin-oscillator/
+*/
+func ChaikinOsc(env *BarEnv, short int, long int) *Series {
+	res := env.Close.To("_chaikinosc", short*1000+long)
+	if res.Cached() {
+		return res
+	}
+	adl := ADL(env)
+
+	shortEma := EMA(adl, short)
+	longEma := EMA(adl, long)
+
+	oscValue := shortEma.Get(0) - longEma.Get(0)
+	return res.Append(oscValue)
+}
+
+// KAMA Kaufman Adaptive Moving Average
+func KAMA(obj *Series, period int) *Series {
+	return KAMABy(obj, period, 2, 30)
+}
+
+// KAMABy Kaufman Adaptive Moving Average
+func KAMABy(obj *Series, period int, fast, slow int) *Series {
+	res := obj.To("_kama", period*10000+slow*100+fast)
+	if res.Cached() {
+		return res
+	}
+
+	effRatio := TNR(obj, period).Get(0)
+	var resVal = res.Get(0)
+
+	if !math.IsNaN(effRatio) {
+		fastV := 2 / float64(fast+1)
+		slowV := 2 / float64(slow+1)
+		alpha := math.Pow(effRatio*(fastV-slowV)+slowV, 2)
+		curVal := obj.Get(0)
+		if math.IsNaN(resVal) {
+			resVal = curVal
+		}
+		resVal = alpha*curVal + (1-alpha)*resVal
+	}
+
+	return res.Append(resVal)
+}
+
+// Stoch 100 * (close - lowest(low, period)) / (highest(high, period) - lowest(low, period))
+func Stoch(obj, high, low *Series, period int) *Series {
+	res := high.To("_stoch", period)
+	if res.Cached() {
+		return res
+	}
+	lowVal := Lowest(low, period).Get(0)
+	highVal := Highest(high, period).Get(0)
+	return res.Append((obj.Get(0) - lowVal) / (highVal - lowVal) * 100)
+}
+
+func WillR(e *BarEnv, period int) *Series {
+	res := e.Close.To("_williams_r", period)
+	if res.Cached() {
+		return res
+	}
+	lowVal := Lowest(e.Low, period).Get(0)
+	highVal := Highest(e.High, period).Get(0)
+	return res.Append((e.Close.Get(0) - highVal) / (highVal - lowVal) * 100)
+}
+
+// StochRSI StochasticRSI
+func StochRSI(obj *Series, rsiLen int, stochLen int, maK int, maD int) *Series {
+	res := obj.To("_stoch_rsi", rsiLen*100000+stochLen*1000+maK*10+maD)
+	if res.Cached() {
+		return res
+	}
+	rsi := RSI(obj, rsiLen)
+	stochCol := Stoch(rsi, rsi, rsi, stochLen)
+	smoothK := SMA(stochCol, maK)
+	smoothD := SMA(smoothK, maD).Get(0)
+	return res.Append([]float64{smoothK.Get(0), smoothD})
+}
+
+type mfiState struct {
+	posArr []float64
+	negArr []float64
+	sumPos float64
+	sumNeg float64
+}
+
+/*
+MFI Money Flow Index
+https://corporatefinanceinstitute.com/resources/career-map/sell-side/capital-markets/money-flow-index/
+*/
+func MFI(e *BarEnv, period int) *Series {
+	res := e.Close.To("_mfi", period)
+	if res.Cached() {
+		return res
+	}
+	sta, _ := res.More.(*mfiState)
+	if sta == nil {
+		sta = &mfiState{sumNeg: math.NaN(), sumPos: math.NaN()}
+		res.More = sta
+	}
+	avgPrice := AvgPrice(e)
+	price0, price1 := avgPrice.Get(0), avgPrice.Get(1)
+	moneyFlow := price0 * e.Volume.Get(0)
+	posFlow, negFlow := float64(0), float64(0)
+	if price0 > price1 {
+		posFlow = moneyFlow
+	} else if price0 < price1 {
+		negFlow = moneyFlow
+	}
+	var resVal = math.NaN()
+	if math.IsNaN(sta.sumPos) || math.IsNaN(sta.sumNeg) {
+		sta.posArr = []float64{posFlow}
+		sta.negArr = []float64{negFlow}
+		sta.sumPos = posFlow
+		sta.sumNeg = negFlow
+	} else {
+		sta.sumPos += posFlow
+		sta.sumNeg += negFlow
+		if len(sta.posArr) < period {
+			sta.posArr = append(sta.posArr, posFlow)
+			sta.negArr = append(sta.negArr, negFlow)
+		} else {
+			sta.sumPos -= sta.posArr[0]
+			sta.sumNeg -= sta.negArr[0]
+			sta.posArr = append(sta.posArr[1:], posFlow)
+			sta.negArr = append(sta.negArr[1:], negFlow)
+			if sta.sumNeg > 0 {
+				moneyFlowRatio := sta.sumPos / sta.sumNeg
+				resVal = 100 - (100 / (1 + moneyFlowRatio))
+			}
+		}
+	}
+	return res.Append(resVal)
+}
+
+/*
+RMI Relative Momentum Index
+https://theforexgeek.com/relative-momentum-index/
+*/
+func RMI(obj *Series, period int, montLen int) *Series {
+	res := obj.To("_rmi", period*1000+montLen)
+	if res.Cached() {
+		return res
+	}
+	maxChg := obj.To("_max_chg", montLen)
+	minChg := obj.To("_min_chg", montLen)
+	chgVal := obj.Get(0) - obj.Get(montLen)
+	maxChg.Append(max(0, chgVal))
+	minChg.Append(-min(0, chgVal))
+	up := RMA(maxChg, period).Get(0)
+	down := RMA(minChg, period).Get(0)
+	var rmiVal = math.NaN()
+	if down == 0 {
+		rmiVal = 100
+	} else if up == 0 {
+		rmiVal = 0
+	} else if !math.IsNaN(up) && !math.IsNaN(down) {
+		rmiVal = 100 - (100 / (1 + up/down))
+	}
+	return res.Append(rmiVal)
 }
