@@ -306,5 +306,22 @@ def test_aroon():
     print(arn_res)
 
 
+def test_wma():
+    ta.set_compatibility(1)
+    period = 10
+    ta_res = ta.WMA(close_arr, timeperiod=period)
+    ta.set_compatibility(0)
+    ta2_res = ta.WMA(close_arr, timeperiod=period)
+    mytt_res = mytt.WMA(close_arr, period)
+    pta_res = pta.wma(close_col, period).to_numpy()
+    print_tares(ta_res, ta2_res, mytt_res, pta_res)
+
+
+def test_hma():
+    period = 10
+    pta_res = pta.hma(close_col, period).to_numpy()
+    print(pta_res)
+
+
 if __name__ == '__main__':
-    test_mfi()
+    test_hma()

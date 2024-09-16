@@ -182,6 +182,52 @@ func RMABy(obj *Series, period int, initType int, initVal float64) *Series {
 	return ewma(obj, res, period, alpha, initType, initVal)
 }
 
+/*
+WMA Weighted Moving Average. the weighting factors decrease in arithmetic progression.
+*/
+func WMA(obj *Series, period int) *Series {
+	res := obj.To("_wma", period)
+	if res.Cached() {
+		return res
+	}
+	val := obj.Get(0)
+	arr, _ := res.More.([]float64)
+	if math.IsNaN(val) {
+		arr = nil
+	} else if len(arr) >= period {
+		arr = append(arr[1:], val)
+	} else {
+		arr = append(arr, val)
+	}
+	res.More = arr
+	if len(arr) < period {
+		return res.Append(math.NaN())
+	}
+	var sumVal = float64(0)
+	var sumWei = float64(0)
+	for i := 0; i < period; i++ {
+		weight := float64(i + 1)
+		sumVal += weight * arr[i]
+		sumWei += weight
+	}
+	return res.Append(sumVal / sumWei)
+}
+
+/*
+HMA Hull Moving Average
+*/
+func HMA(obj *Series, period int) *Series {
+	maLen := int(math.Floor(math.Sqrt(float64(period))))
+	mid := obj.To("_hmamid", period)
+	if mid.Cached() {
+		return WMA(mid, maLen)
+	}
+	half := WMA(obj, period/2).Get(0)
+	wma := WMA(obj, period).Get(0)
+	mid.Append(2*half - wma)
+	return WMA(mid, maLen)
+}
+
 func TR(high *Series, low *Series, close *Series) *Series {
 	res := high.To("_tr", 0)
 	if res.Cached() {
@@ -443,7 +489,7 @@ func StdDevBy(obj *Series, period int, ddof int) *Series {
 	return res.Append([]float64{stdDevVal, meanVal})
 }
 
-// BBANDS 布林带指标。返回：upper, sumVal, lower
+// BBANDS 布林带指标。返回：upper, mid, lower
 func BBANDS(obj *Series, period int, stdUp, stdDn float64) *Series {
 	res := obj.To("_bb", period*10000+int(stdUp*1000)+int(stdDn*10))
 	if res.Cached() {
