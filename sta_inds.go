@@ -204,11 +204,9 @@ func WMA(obj *Series, period int) *Series {
 		return res.Append(math.NaN())
 	}
 	var sumVal = float64(0)
-	var sumWei = float64(0)
+	var sumWei = float64(period) * float64(period+1) * 0.5
 	for i := 0; i < period; i++ {
-		weight := float64(i + 1)
-		sumVal += weight * arr[i]
-		sumWei += weight
+		sumVal += float64(i+1) * arr[i]
 	}
 	return res.Append(sumVal / sumWei)
 }
@@ -992,4 +990,97 @@ func RMI(obj *Series, period int, montLen int) *Series {
 		rmiVal = 100 - (100 / (1 + up/down))
 	}
 	return res.Append(rmiVal)
+}
+
+func boolToHash(vals ...bool) int {
+	result := 0
+	for i, v := range vals {
+		if v {
+			result += 1 << i
+		}
+	}
+	return result
+}
+
+/*
+LinReg Linear Regression Moving Average
+
+Linear Regression Moving Average (LINREG). This is a simplified version of a
+Standard Linear Regression. LINREG is a rolling regression of one variable. A
+Standard Linear Regression is between two or more variables.
+*/
+func LinReg(obj *Series, period int) *Series {
+	return LinRegAdv(obj, period, false, false, false, false, false, false)
+}
+
+func LinRegAdv(obj *Series, period int, angle, intercept, degrees, r, slope, tsf bool) *Series {
+	hash := period*100 + boolToHash(angle, intercept, degrees, r, slope, tsf)
+	res := obj.To("_linreg", hash)
+	if res.Cached() {
+		return res
+	}
+	sumY := Sum(obj, period).Get(0)
+	val := obj.Get(0)
+	arr, _ := res.More.([]float64)
+	if math.IsNaN(val) {
+		arr = nil
+	} else if len(arr) >= period {
+		arr = append(arr[1:], val)
+	} else {
+		arr = append(arr, val)
+	}
+	res.More = arr
+	if len(arr) < period {
+		return res.Append(math.NaN())
+	}
+	periodF := float64(period)
+	var sumXY = float64(0)
+	var sumX = periodF * float64(period+1) * 0.5
+	sumY2 := float64(0)
+	for i := 0; i < period; i++ {
+		v := arr[i]
+		sumXY += float64(i+1) * v
+		if r {
+			sumY2 += v * v
+		}
+	}
+	sumX2 := sumX * (2*periodF + 1) / 3
+	divisor := periodF*sumX2 - sumX*sumX
+	m := (periodF*sumXY - sumX*sumY) / divisor
+	if slope {
+		return res.Append(m)
+	}
+	b := (sumY*sumX2 - sumX*sumXY) / divisor
+	if intercept {
+		return res.Append(b)
+	}
+	if angle {
+		theta := math.Atan(m)
+		if degrees {
+			theta *= 180 / math.Pi
+		}
+		return res.Append(theta)
+	}
+	if r {
+		rn := periodF*sumXY - sumX*sumY
+		rd := math.Pow(divisor*(periodF*sumY2-sumY*sumY), 0.5)
+		return res.Append(rn / rd)
+	}
+	if tsf {
+		return res.Append(m*periodF + b)
+	} else {
+		return res.Append(m*(periodF-1) + b)
+	}
+}
+
+/*
+CTI Correlation Trend Indicator
+
+The Correlation Trend Indicator is an oscillator created by John Ehler in 2020.
+It assigns a value depending on how close prices in that range are to following
+a positively- or negatively-sloping straight line. Values range from -1 to 1.
+This is a wrapper for ta.linreg(close, r=True).
+*/
+func CTI(obj *Series, period int) *Series {
+	return LinRegAdv(obj, period, false, false, false, true, false, false)
 }

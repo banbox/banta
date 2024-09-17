@@ -52,6 +52,8 @@ Some indicators such as KDJ generally return two fields k and d `kdjRes := ta.KD
 | StochRSI |  --  |      ✔       |        ✔         |     ✔     |     ✔~      |
 | MFI      |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
 | RMI      |  --  |      --      |        --        |    --     |     ✔~      |
+| CTI      |  --  |      --      |        --        |     ✔     |     T1      |
+| LinReg   |  --  |      --      |        --        |     ✔     |      ?      |
 ```text
 -- This platform does not have this indicator
 ✔ The calculation results are consistent with this platform

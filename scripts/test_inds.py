@@ -323,5 +323,17 @@ def test_hma():
     print(pta_res)
 
 
+def test_cti():
+    period = 10
+    pta_res = pta.cti(close_col, period).to_numpy()
+    print(pta_res)
+
+
+def test_lingreg():
+    period = 10
+    pta_res = pta.linreg(close_col, period).to_numpy()
+    print(pta_res)
+
+
 if __name__ == '__main__':
-    test_hma()
+    test_lingreg()
