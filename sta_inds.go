@@ -381,7 +381,7 @@ func LowestBar(obj *Series, period int) *Series {
 }
 
 /*
-KDJ 也称为：Stoch随机指标。返回k, d
+KDJ 也称为：Stoch随机指标。返回k, d, rsv
 */
 func KDJ(high *Series, low *Series, close *Series, period int, sm1 int, sm2 int) *Series {
 	return KDJBy(high, low, close, period, sm1, sm2, "rma")
@@ -394,23 +394,17 @@ var (
 	}
 )
 
+/*
+KDJBy alias: stoch indicator;
+return (K, D, RSV)
+*/
 func KDJBy(high *Series, low *Series, close *Series, period int, sm1 int, sm2 int, maBy string) *Series {
 	byVal, _ := kdjTypes[maBy]
 	res := high.To("_kdj", period*100000+sm1*1000+sm2*10+byVal)
 	if res.Cached() {
 		return res
 	}
-	rsv := high.To("_rsv", period)
-	if !rsv.Cached() {
-		hhigh := Highest(high, period).Get(0)
-		llow := Lowest(low, period).Get(0)
-		maxChg := hhigh - llow
-		if equalNearly(maxChg, 0) {
-			rsv.Append(50.0)
-		} else {
-			rsv.Append((close.Get(0) - llow) / maxChg * 100)
-		}
-	}
+	rsv := Stoch(high, low, close, period)
 	if maBy == "rma" {
 		k := RMABy(rsv, sm1, 0, 50)
 		d := RMABy(k, sm2, 0, 50)
@@ -422,6 +416,27 @@ func KDJBy(high *Series, low *Series, close *Series, period int, sm1 int, sm2 in
 	} else {
 		panic(fmt.Sprintf("unknown maBy for KDJ: %s", maBy))
 	}
+}
+
+/*
+Stoch 100 * (close - lowest(low, period)) / (highest(high, period) - lowest(low, period))
+
+use KDJ if you want to apply SMA/RMA to this
+*/
+func Stoch(high, low, close *Series, period int) *Series {
+	res := high.To("_rsv", period)
+	if res.Cached() {
+		return res
+	}
+	hhigh := Highest(high, period).Get(0)
+	llow := Lowest(low, period).Get(0)
+	maxChg := hhigh - llow
+	if equalNearly(maxChg, 0) {
+		res.Append(50.0)
+	} else {
+		res.Append((close.Get(0) - llow) / maxChg * 100)
+	}
+	return res
 }
 
 /*
@@ -873,17 +888,6 @@ func KAMABy(obj *Series, period int, fast, slow int) *Series {
 	}
 
 	return res.Append(resVal)
-}
-
-// Stoch 100 * (close - lowest(low, period)) / (highest(high, period) - lowest(low, period))
-func Stoch(obj, high, low *Series, period int) *Series {
-	res := high.To("_stoch", period)
-	if res.Cached() {
-		return res
-	}
-	lowVal := Lowest(low, period).Get(0)
-	highVal := Highest(high, period).Get(0)
-	return res.Append((obj.Get(0) - lowVal) / (highVal - lowVal) * 100)
 }
 
 func WillR(e *BarEnv, period int) *Series {
