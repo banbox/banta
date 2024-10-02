@@ -111,8 +111,8 @@ func TestCommon(t *testing.T) {
 		{"HeikinAshi", heiKenArr, func() float64 {
 			return HeikinAshi(env).Cols[0].Get(0)
 		}},
-		{"TNR", tnrArr, func() float64 {
-			return TNR(env.Close, 10).Get(0)
+		{"ER", tnrArr, func() float64 {
+			return ER(env.Close, 10).Get(0)
 		}},
 		{"CCI", cciArr, func() float64 {
 			hlc3 := AvgPrice(env)

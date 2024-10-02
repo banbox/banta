@@ -685,8 +685,8 @@ type tnrState struct {
 	sumVal float64
 }
 
-// TNR Trend to Noise Ratio / Efficiency Ratio
-func TNR(obj *Series, period int) *Series {
+// ER Efficiency Ratio / Trend to Noise Ratio
+func ER(obj *Series, period int) *Series {
 	res := obj.To("_tnr", period)
 	if res.Cached() {
 		return res
@@ -873,7 +873,7 @@ func KAMABy(obj *Series, period int, fast, slow int) *Series {
 		return res
 	}
 
-	effRatio := TNR(obj, period).Get(0)
+	effRatio := ER(obj, period).Get(0)
 	var resVal = res.Get(0)
 
 	if !math.IsNaN(effRatio) {
