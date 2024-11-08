@@ -116,7 +116,7 @@ func (s *Series) Cached() bool {
 
 func (s *Series) Get(i int) float64 {
 	if len(s.Cols) > 0 {
-		panic(fmt.Errorf("Get Val on Merged Series!"))
+		panic(fmt.Errorf("get val on combined Series"))
 	}
 	allLen := len(s.Data)
 	if i < 0 || i >= allLen {

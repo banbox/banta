@@ -54,6 +54,9 @@ Some indicators such as KDJ generally return two fields k and d `kdjRes := ta.KD
 | RMI      |  --  |      --      |        --        |    --     |     ✔~      |
 | CTI      |  --  |      --      |        --        |     ✔     |     T1      |
 | LinReg   |  --  |      --      |        --        |     ✔     |      ?      |
+| CMO      |  --  |      ✔       |        ✔         |     ✔     |     T1      |
+| CMOBy1   |  --  |      T1      |        T1        |    T1     |      ✔      |
+| CHOP     |  --  |      --      |        --        |     ✔     |     T1      |
 ```text
 -- This platform does not have this indicator
 ✔ The calculation results are consistent with this platform

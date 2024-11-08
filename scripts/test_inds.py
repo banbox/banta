@@ -335,5 +335,21 @@ def test_lingreg():
     print(pta_res)
 
 
+def test_cmo():
+    ta.set_compatibility(1)
+    period = 10
+    ta_res = ta.CMO(close_arr, timeperiod=period)
+    ta.set_compatibility(0)
+    ta2_res = ta.CMO(close_arr, timeperiod=period)
+    pta_res = pta.cmo(close_col, period).to_numpy()
+    print_tares(ta_res, ta2_res, None, pta_res)
+
+
+def test_chop():
+    period = 10
+    pta_res = pta.chop(high_col, low_col, close_col, period).to_numpy()
+    print_tares(None, None, None, pta_res)
+
+
 if __name__ == '__main__':
-    test_lingreg()
+    test_chop()

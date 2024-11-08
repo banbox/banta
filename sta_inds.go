@@ -18,6 +18,15 @@ func AvgPrice(e *BarEnv) *Series {
 	return res.Append(avgPrice)
 }
 
+func HL2(e *BarEnv) *Series {
+	res := e.Close.To("_hl", 0)
+	if res.Cached() {
+		return res
+	}
+	avgPrice := (e.High.Get(0) + e.Low.Get(0)) / 2
+	return res.Append(avgPrice)
+}
+
 type sumState struct {
 	sumVal float64
 	addLen int
@@ -110,6 +119,11 @@ func VWMA(price *Series, vol *Series, period int) *Series {
 	return res.Append(more.sumCost / more.sumWei)
 }
 
+/*
+alpha: update weight for latest value
+initType: 0: sma   1: first value
+initVal: use this as init val if not nan
+*/
 func ewma(obj, res *Series, period int, alpha float64, initType int, initVal float64) *Series {
 	if res.Cached() {
 		return res
@@ -245,8 +259,11 @@ func ATR(high *Series, low *Series, close *Series, period int) *Series {
 }
 
 /*
-MACD 计算MACD指标。
+MACD
+
+Internationally, init_type=0 is used, while MyTT and China mainly use init_type=1
 国外主流使用init_type=0，MyTT和国内主要使用init_type=1
+return [macd, signal]
 */
 func MACD(obj *Series, fast int, slow int, smooth int) *Series {
 	return MACDBy(obj, fast, slow, smooth, 0)
@@ -1087,4 +1104,105 @@ This is a wrapper for ta.linreg(close, r=True).
 */
 func CTI(obj *Series, period int) *Series {
 	return LinRegAdv(obj, period, false, false, false, true, false, false)
+}
+
+type cmdSta struct {
+	subs   []float64
+	sumPos float64
+	sumNeg float64
+}
+
+/*
+CMO Chande Momentum Oscillator
+
+Same implementation as ta-lib
+For TradingView, use: CMOBy(obj, period, 1)
+*/
+func CMO(obj *Series, period int) *Series {
+	return CMOBy(obj, period, 0)
+}
+
+/*
+CMOBy Chande Momentum Oscillator
+
+maType: 0: ta-lib   1: tradingView
+*/
+func CMOBy(obj *Series, period int, maType int) *Series {
+	res := obj.To("_cmo", period*10+maType)
+	if res.Cached() {
+		return res
+	}
+	val := obj.Get(0) - obj.Get(1)
+	sta, _ := res.More.(*cmdSta)
+	if sta == nil || math.IsNaN(val) {
+		sta = &cmdSta{}
+		res.More = sta
+	}
+	if !math.IsNaN(val) {
+		if maType == 0 {
+			// ta-lib  wilder's smooth
+			if len(sta.subs) >= period {
+				wei := 1 - 1/float64(period)
+				sta.sumPos *= wei
+				sta.sumNeg *= wei
+				if val > 0 {
+					sta.sumPos += val * (1 - wei)
+				} else {
+					sta.sumNeg -= val * (1 - wei)
+				}
+				sta.subs = append(sta.subs[1:], val)
+			} else {
+				if val > 0 {
+					sta.sumPos += val
+				} else {
+					sta.sumNeg -= val
+				}
+				sta.subs = append(sta.subs, val)
+				if len(sta.subs) == period {
+					sta.sumPos /= float64(period)
+					sta.sumNeg /= float64(period)
+				}
+			}
+		} else {
+			// tradingView  Sum(sub, period)
+			if val > 0 {
+				sta.sumPos += val
+			} else {
+				sta.sumNeg -= val
+			}
+			if len(sta.subs) >= period {
+				prevVal := sta.subs[0]
+				if prevVal > 0 {
+					sta.sumPos -= prevVal
+				} else {
+					sta.sumNeg += prevVal
+				}
+				sta.subs = append(sta.subs[1:], val)
+			} else {
+				sta.subs = append(sta.subs, val)
+			}
+		}
+	}
+	if len(sta.subs) < period {
+		return res.Append(math.NaN())
+	}
+	return res.Append((sta.sumPos - sta.sumNeg) * 100 / (sta.sumPos + sta.sumNeg))
+}
+
+/*
+CHOP Choppiness Index
+
+higher values equal more choppiness, while lower values indicate directional trending.
+值越高，波动性越大，而值越低，则表示有方向性趋势。
+*/
+func CHOP(e *BarEnv, period int) *Series {
+	res := e.Close.To("_chop", period)
+	if res.Cached() {
+		return res
+	}
+	atrSum := Sum(ATR(e.High, e.Low, e.Close, 1), period).Get(0)
+	hh := Highest(e.High, period).Get(0)
+	ll := Lowest(e.Low, period).Get(0)
+	val := 100 * math.Log10(atrSum/(hh-ll)) / math.Log10(float64(period))
+	return res.Append(val)
 }
