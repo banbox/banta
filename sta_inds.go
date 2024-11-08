@@ -87,8 +87,11 @@ type moreVWMA struct {
 }
 
 /*
-VWMA 成交量加权平均价格
-公式：sum(price*volume)/sum(volume)
+VWMA Volume Weighted Moving Average 成交量加权平均价格
+
+sum(price*volume)/sum(volume)
+
+suggest period: 20
 */
 func VWMA(price *Series, vol *Series, period int) *Series {
 	res := price.To("_vwma", period)
@@ -150,7 +153,11 @@ func ewma(obj, res *Series, period int, alpha float64, initType int, initVal flo
 }
 
 /*
-EMA 指数移动均线 最近一个权重：2/(n+1)
+EMA Exponential Moving Average 指数移动均线
+
+Latest value weight: 2/(n+1)
+
+最近一个权重：2/(n+1)
 */
 func EMA(obj *Series, period int) *Series {
 	return EMABy(obj, period, 0)
@@ -168,7 +175,10 @@ func EMABy(obj *Series, period int, initType int) *Series {
 }
 
 /*
-RMA 相对移动均线
+RMA Relative Moving Average 相对移动均线
+
+The difference from EMA is: both the numerator and denominator are reduced by 1
+Latest value weight: 1/n
 
 	和EMA区别是：分子分母都减一
 	最近一个权重：1/n
@@ -178,12 +188,20 @@ func RMA(obj *Series, period int) *Series {
 }
 
 /*
-RMABy 相对移动均线
+RMABy Relative Moving Average 相对移动均线
+
+The difference from EMA is: both the numerator and denominator are reduced by 1
+The most recent weight: 1/n
 
 	和EMA区别是：分子分母都减一
 	最近一个权重：1/n
 
+initType: 0 initialize with SMA, 1 initialize with the first valid value
+
+initVal defaults to Nan
+
 initType：0使用SMA初始化，1第一个有效值初始化
+
 initVal 默认Nan
 */
 func RMABy(obj *Series, period int, initType int, initVal float64) *Series {
@@ -197,7 +215,11 @@ func RMABy(obj *Series, period int, initType int, initVal float64) *Series {
 }
 
 /*
-WMA Weighted Moving Average. the weighting factors decrease in arithmetic progression.
+WMA Weighted Moving Average.
+
+the weighting factors decrease in arithmetic progression.
+
+suggest period: 9
 */
 func WMA(obj *Series, period int) *Series {
 	res := obj.To("_wma", period)
@@ -227,6 +249,8 @@ func WMA(obj *Series, period int) *Series {
 
 /*
 HMA Hull Moving Average
+
+suggest period: 9
 */
 func HMA(obj *Series, period int) *Series {
 	maLen := int(math.Floor(math.Sqrt(float64(period))))
@@ -254,6 +278,11 @@ func TR(high *Series, low *Series, close *Series) *Series {
 	}
 }
 
+/*
+ATR Average True Range
+
+suggest period: 14
+*/
 func ATR(high *Series, low *Series, close *Series, period int) *Series {
 	return RMA(TR(high, low, close), period)
 }
@@ -263,6 +292,9 @@ MACD
 
 Internationally, init_type=0 is used, while MyTT and China mainly use init_type=1
 国外主流使用init_type=0，MyTT和国内主要使用init_type=1
+
+fast: 12, slow: 26, smooth: 9
+
 return [macd, signal]
 */
 func MACD(obj *Series, fast int, slow int, smooth int) *Series {
@@ -325,12 +357,16 @@ func rsiBy(obj *Series, period int, subVal float64) *Series {
 	return res.Append(resVal)
 }
 
-// RSI 计算相对强度指数
+/*
+RSI Relative Strength Index 计算相对强度指数
+
+suggest period: 14
+*/
 func RSI(obj *Series, period int) *Series {
 	return rsiBy(obj, period, 0)
 }
 
-// RSI50 计算相对强度指数-50
+// RSI50 Relative Strength Index 计算相对强度指数-50
 func RSI50(obj *Series, period int) *Series {
 	return rsiBy(obj, period, 50)
 }
@@ -398,7 +434,11 @@ func LowestBar(obj *Series, period int) *Series {
 }
 
 /*
-KDJ 也称为：Stoch随机指标。返回k, d, rsv
+KDJ alias: stoch indicator;
+
+period: 9, sm1: 3, sm2: 3
+
+return (K, D, RSV)
 */
 func KDJ(high *Series, low *Series, close *Series, period int, sm1 int, sm2 int) *Series {
 	return KDJBy(high, low, close, period, sm1, sm2, "rma")
@@ -413,6 +453,9 @@ var (
 
 /*
 KDJBy alias: stoch indicator;
+
+period: 9, sm1: 3, sm2: 3
+
 return (K, D, RSV)
 */
 func KDJBy(high *Series, low *Series, close *Series, period int, sm1 int, sm2 int, maBy string) *Series {
@@ -439,6 +482,8 @@ func KDJBy(high *Series, low *Series, close *Series, period int, sm1 int, sm2 in
 Stoch 100 * (close - lowest(low, period)) / (highest(high, period) - lowest(low, period))
 
 use KDJ if you want to apply SMA/RMA to this
+
+suggest period: 14
 */
 func Stoch(high, low, close *Series, period int) *Series {
 	res := high.To("_rsv", period)
@@ -457,11 +502,18 @@ func Stoch(high, low, close *Series, period int) *Series {
 }
 
 /*
-Aroon 阿隆指标  反映了一段时间内出现最高价和最低价距离当前时间的远近。
+Aroon 阿隆指标
+
+Reflects the distance between the highest price and the lowest price within a certain period of time.
+反映了一段时间内出现最高价和最低价距离当前时间的远近。
+
 AroonUp: (period - HighestBar(high, period+1)) / period * 100
+
 AroonDn: (period - LowestBar(low, period+1)) / period * 100
+
 Osc: AroonUp - AroonDn
-返回：AroonUp, Osc, AroonDn
+
+return [AroonUp, Osc, AroonDn]
 */
 func Aroon(high *Series, low *Series, period int) *Series {
 	res := high.To("_aroon", period)
@@ -476,18 +528,22 @@ func Aroon(high *Series, low *Series, period int) *Series {
 }
 
 /*
-	StdDev 计算标准差和均值
+	StdDev Standard Deviation 标准差和均值
 
-返回：stddev，sumVal
+suggest period: 20
+
+return [stddev，sumVal]
 */
 func StdDev(obj *Series, period int) *Series {
 	return StdDevBy(obj, period, 0)
 }
 
 /*
-	StdDevBy 计算标准差和均值
+	StdDevBy Standard Deviation
 
-返回：stddev，sumVal
+suggest period: 20
+
+return [stddev，sumVal]
 */
 func StdDevBy(obj *Series, period int, ddof int) *Series {
 	res := obj.To("_sdev", period*10+ddof)
@@ -519,7 +575,13 @@ func StdDevBy(obj *Series, period int, ddof int) *Series {
 	return res.Append([]float64{stdDevVal, meanVal})
 }
 
-// BBANDS 布林带指标。返回：upper, mid, lower
+/*
+BBANDS Bollinger Bands 布林带指标
+
+period: 20, stdUp: 2, stdDn: 2
+
+return [upper, mid, lower]
+*/
 func BBANDS(obj *Series, period int, stdUp, stdDn float64) *Series {
 	res := obj.To("_bb", period*10000+int(stdUp*1000)+int(stdDn*10))
 	if res.Cached() {
@@ -538,7 +600,11 @@ func BBANDS(obj *Series, period int, stdUp, stdDn float64) *Series {
 }
 
 /*
-	TD 计算Tom DeMark Sequence（狄马克序列）
+	TD Tom DeMark Sequence（狄马克序列）
+
+over bought: 9,13
+
+over sell: -9, -13
 
 9和13表示超买；-9和-13表示超卖
 */
@@ -567,6 +633,10 @@ func TD(obj *Series) *Series {
 
 /*
 ADX Average Directional Index
+
+suggest period: 14
+
+return [maDX, plusDI, minusDI]
 */
 func ADX(high *Series, low *Series, close *Series, period int) *Series {
 	return ADXBy(high, low, close, period, 0)
@@ -584,6 +654,10 @@ type adxState struct {
 
 method=0 classic ADX
 method=1 TradingView "ADX and DI for v4"
+
+suggest period: 14
+
+return [maDX, plusDI, minusDI]
 */
 func ADXBy(high *Series, low *Series, close *Series, period int, method int) *Series {
 	// 初始化相关的系列
@@ -657,6 +731,8 @@ func ADXBy(high *Series, low *Series, close *Series, period int, method int) *Se
 
 /*
 ROC rate of change
+
+suggest period: 9
 */
 func ROC(obj *Series, period int) *Series {
 	res := obj.To("_roc", period)
@@ -702,7 +778,11 @@ type tnrState struct {
 	sumVal float64
 }
 
-// ER Efficiency Ratio / Trend to Noise Ratio
+/*
+ER Efficiency Ratio / Trend to Noise Ratio
+
+suggest period: 8
+*/
 func ER(obj *Series, period int) *Series {
 	res := obj.To("_tnr", period)
 	if res.Cached() {
@@ -757,6 +837,8 @@ func AvgDev(obj *Series, period int) *Series {
 	CCI Commodity Channel Index
 
 https://www.tradingview.com/support/solutions/43000502001-commodity-channel-index-cci/
+
+suggest period: 20
 */
 func CCI(obj *Series, period int) *Series {
 	res := obj.To("_cci", period)
@@ -798,7 +880,10 @@ type cmfState struct {
 
 /*
 CMF Chaikin Money Flow
+
 https://www.tradingview.com/scripts/chaikinmoneyflow/?solution=43000501974
+
+suggest period: 20
 */
 func CMF(env *BarEnv, period int) *Series {
 	res := env.Close.To("_cmf", period)
@@ -861,8 +946,11 @@ func ADL(env *BarEnv) *Series {
 }
 
 /*
-ChaikinOsc
+ChaikinOsc Chaikin Oscillator
+
 https://www.tradingview.com/support/solutions/43000501979-chaikin-oscillator/
+
+short: 3, long: 10
 */
 func ChaikinOsc(env *BarEnv, short int, long int) *Series {
 	res := env.Close.To("_chaikinosc", short*1000+long)
@@ -878,12 +966,20 @@ func ChaikinOsc(env *BarEnv, short int, long int) *Series {
 	return res.Append(oscValue)
 }
 
-// KAMA Kaufman Adaptive Moving Average
+/*
+KAMA Kaufman Adaptive Moving Average
+
+period: 10 fixed: (fast: 2, slow: 30)
+*/
 func KAMA(obj *Series, period int) *Series {
 	return KAMABy(obj, period, 2, 30)
 }
 
-// KAMABy Kaufman Adaptive Moving Average
+/*
+KAMABy Kaufman Adaptive Moving Average
+
+period: 10, fast: 2, slow: 30
+*/
 func KAMABy(obj *Series, period int, fast, slow int) *Series {
 	res := obj.To("_kama", period*10000+slow*100+fast)
 	if res.Cached() {
@@ -907,6 +1003,11 @@ func KAMABy(obj *Series, period int, fast, slow int) *Series {
 	return res.Append(resVal)
 }
 
+/*
+WillR William's Percent R
+
+suggest period: 14
+*/
 func WillR(e *BarEnv, period int) *Series {
 	res := e.Close.To("_williams_r", period)
 	if res.Cached() {
@@ -917,7 +1018,11 @@ func WillR(e *BarEnv, period int) *Series {
 	return res.Append((e.Close.Get(0) - highVal) / (highVal - lowVal) * 100)
 }
 
-// StochRSI StochasticRSI
+/*
+StochRSI StochasticRSI
+
+rsiLen: 14, stochLen: 14, maK: 3, maD: 3
+*/
 func StochRSI(obj *Series, rsiLen int, stochLen int, maK int, maD int) *Series {
 	res := obj.To("_stoch_rsi", rsiLen*100000+stochLen*1000+maK*10+maD)
 	if res.Cached() {
@@ -939,7 +1044,10 @@ type mfiState struct {
 
 /*
 MFI Money Flow Index
+
 https://corporatefinanceinstitute.com/resources/career-map/sell-side/capital-markets/money-flow-index/
+
+suggest period: 14
 */
 func MFI(e *BarEnv, period int) *Series {
 	res := e.Close.To("_mfi", period)
@@ -989,6 +1097,8 @@ func MFI(e *BarEnv, period int) *Series {
 /*
 RMI Relative Momentum Index
 https://theforexgeek.com/relative-momentum-index/
+
+period: 14, montLen: 3
 */
 func RMI(obj *Series, period int, montLen int) *Series {
 	res := obj.To("_rmi", period*1000+montLen)
@@ -1100,7 +1210,9 @@ CTI Correlation Trend Indicator
 The Correlation Trend Indicator is an oscillator created by John Ehler in 2020.
 It assigns a value depending on how close prices in that range are to following
 a positively- or negatively-sloping straight line. Values range from -1 to 1.
-This is a wrapper for ta.linreg(close, r=True).
+This is a wrapper for LinRegAdv.
+
+suggest period: 20
 */
 func CTI(obj *Series, period int) *Series {
 	return LinRegAdv(obj, period, false, false, false, true, false, false)
@@ -1115,6 +1227,8 @@ type cmdSta struct {
 /*
 CMO Chande Momentum Oscillator
 
+suggest period: 9
+
 Same implementation as ta-lib
 For TradingView, use: CMOBy(obj, period, 1)
 */
@@ -1124,6 +1238,8 @@ func CMO(obj *Series, period int) *Series {
 
 /*
 CMOBy Chande Momentum Oscillator
+
+suggest period: 9
 
 maType: 0: ta-lib   1: tradingView
 */
@@ -1192,6 +1308,8 @@ func CMOBy(obj *Series, period int, maType int) *Series {
 /*
 CHOP Choppiness Index
 
+suggest period: 14
+
 higher values equal more choppiness, while lower values indicate directional trending.
 值越高，波动性越大，而值越低，则表示有方向性趋势。
 */
@@ -1205,4 +1323,55 @@ func CHOP(e *BarEnv, period int) *Series {
 	ll := Lowest(e.Low, period).Get(0)
 	val := 100 * math.Log10(atrSum/(hh-ll)) / math.Log10(float64(period))
 	return res.Append(val)
+}
+
+/*
+ALMA Arnaud Legoux Moving Average
+
+period:  window size. Default: 10
+
+sigma: Smoothing value. Default 6.0
+
+distOff: min 0 (smoother), max 1 (more responsive). Default: 0.85
+*/
+func ALMA(obj *Series, period int, sigma, distOff float64) *Series {
+	res := obj.To("_alma", period*1000+int(sigma*100+distOff*100))
+	if res.Cached() {
+		return res
+	}
+	if obj.Len() < period {
+		return res.Append(math.NaN())
+	}
+	m := distOff * (float64(period) - 1)
+	s := float64(period) / sigma
+	var windowSum, cumSum = float64(0), float64(0)
+	for i := 0; i < period; i++ {
+		fi := float64(i)
+		wei := math.Exp(-(fi - m) * (fi - m) / (2 * s * s))
+		windowSum += wei * obj.Get(i)
+		cumSum += wei
+	}
+	return res.Append(windowSum / cumSum)
+}
+
+/*
+Stiffness Indicator
+
+maLen: 100, stiffLen: 60, stiffMa: 3
+*/
+func Stiffness(obj *Series, maLen, stiffLen, stiffMa int) *Series {
+	bound := obj.To("_sti_bound", maLen)
+	if !bound.Cached() {
+		stdDev := StdDev(obj, maLen).Cols[0].Get(0)
+		bound.Append(SMA(obj, maLen).Get(0) - stdDev*0.2)
+	}
+	above := bound.To("_raw_gt", stiffLen)
+	if !above.Cached() {
+		val := float64(0)
+		if obj.Get(0) > bound.Get(0) {
+			val = 100 / float64(stiffLen)
+		}
+		above.Append(val)
+	}
+	return EMA(Sum(above, stiffLen), stiffMa)
 }

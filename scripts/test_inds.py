@@ -351,5 +351,11 @@ def test_chop():
     print_tares(None, None, None, pta_res)
 
 
+def test_alma():
+    period = 10
+    pta_res = pta.alma(close_col, period).to_numpy()
+    print_tares(None, None, None, pta_res)
+
+
 if __name__ == '__main__':
-    test_chop()
+    test_alma()

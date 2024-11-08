@@ -23,40 +23,42 @@ Some indicators such as KDJ generally return two fields k and d `kdjRes := ta.KD
 
 ## Supported indicators
 #### Comparison of consistency with common indicator platform results
-| banta    | MyTT | TA-lib Class | TA-lib Metastock | Pandas-TA | TradingView |
-|----------|:----:|:------------:|:----------------:|:---------:|:-----------:| 
-| AvgPrice |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
-| Sum      |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
-| SMA      |  T1  |      ✔       |        ✔         |     ✔     |      ✔      |
-| EMA      |  T1  |      T1      |        ✔         |     ✔     |     T2      |
-| EMABy1   |  ✔   |      T1      |        T2        |    T2     |     T3      |
-| RMA      |  --  |      --      |        --        |    T1     |     --      |
-| VWMA     |  --  |      --      |        --        |     ✔     |      ✔      |
-| WMA      |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
-| HWMA     |  --  |      --      |        --        |     ✔     |      ✔      |
-| TR       |  --  |      ✔       |        ✔         |     ✔     |     --      |
-| ATR      |  T1  |      ✔       |        ✔         |    T2     |     T3      |
-| MACD     |  T1  |      T2      |        T1        |     ✔     |     T3      |
-| RSI      |  T1  |      ✔       |        ✔         |    T2     |     T3      |
-| KDJ      |  T1  |      T2      |        T1        |    T3     |      ✔      |
-| BBANDS   |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
-| Aroon    |  --  |      ✔       |        ✔         |     ✔     |     T1      |
-| ADX      |  --  |      ✔       |        ✔         |    T1     |     T2      |
-| ADXBy1   |  --  |      T1      |        T1        |    T2     |      ✔      |
-| ROC      |  ✔   |      ✔       |        ✔         |    --     |      ✔      |
-| TNR/ER   |  --  |      --      |        --        |    --     |     --      |
-| CCI      |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
-| CMF      |  --  |      --      |        --        |     ✔     |      ✔      |
-| KAMA     |  --  |      ✔~      |        ✔~        |    T1     |     ✔~      |
-| WillR    |  --  |      ✔       |        ✔         |     ✔     |      ✔      |
-| StochRSI |  --  |      ✔       |        ✔         |     ✔     |     ✔~      |
-| MFI      |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
-| RMI      |  --  |      --      |        --        |    --     |     ✔~      |
-| CTI      |  --  |      --      |        --        |     ✔     |     T1      |
-| LinReg   |  --  |      --      |        --        |     ✔     |      ?      |
-| CMO      |  --  |      ✔       |        ✔         |     ✔     |     T1      |
-| CMOBy1   |  --  |      T1      |        T1        |    T1     |      ✔      |
-| CHOP     |  --  |      --      |        --        |     ✔     |     T1      |
+| banta     | MyTT | TA-lib Class | TA-lib Metastock | Pandas-TA | TradingView |
+|-----------|:----:|:------------:|:----------------:|:---------:|:-----------:| 
+| AvgPrice  |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
+| Sum       |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
+| SMA       |  T1  |      ✔       |        ✔         |     ✔     |      ✔      |
+| EMA       |  T1  |      T1      |        ✔         |     ✔     |     T2      |
+| EMABy1    |  ✔   |      T1      |        T2        |    T2     |     T3      |
+| RMA       |  --  |      --      |        --        |    T1     |     --      |
+| VWMA      |  --  |      --      |        --        |     ✔     |      ✔      |
+| WMA       |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
+| HWMA      |  --  |      --      |        --        |     ✔     |      ✔      |
+| TR        |  --  |      ✔       |        ✔         |     ✔     |     --      |
+| ATR       |  T1  |      ✔       |        ✔         |    T2     |     T3      |
+| MACD      |  T1  |      T2      |        T1        |     ✔     |     T3      |
+| RSI       |  T1  |      ✔       |        ✔         |    T2     |     T3      |
+| KDJ       |  T1  |      T2      |        T1        |    T3     |      ✔      |
+| BBANDS    |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
+| Aroon     |  --  |      ✔       |        ✔         |     ✔     |     T1      |
+| ADX       |  --  |      ✔       |        ✔         |    T1     |     T2      |
+| ADXBy1    |  --  |      T1      |        T1        |    T2     |      ✔      |
+| ROC       |  ✔   |      ✔       |        ✔         |    --     |      ✔      |
+| TNR/ER    |  --  |      --      |        --        |    --     |     --      |
+| CCI       |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
+| CMF       |  --  |      --      |        --        |     ✔     |      ✔      |
+| KAMA      |  --  |      ✔~      |        ✔~        |    T1     |     ✔~      |
+| WillR     |  --  |      ✔       |        ✔         |     ✔     |      ✔      |
+| StochRSI  |  --  |      ✔       |        ✔         |     ✔     |     ✔~      |
+| MFI       |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
+| RMI       |  --  |      --      |        --        |    --     |     ✔~      |
+| CTI       |  --  |      --      |        --        |     ✔     |     T1      |
+| LinReg    |  --  |      --      |        --        |     ✔     |      ?      |
+| CMO       |  --  |      ✔       |        ✔         |     ✔     |     T1      |
+| CMOBy1    |  --  |      T1      |        T1        |    T1     |      ✔      |
+| CHOP      |  --  |      --      |        --        |     ✔     |     T1      |
+| ALMA      |  --  |      --      |        --        |     ✔     |     T1      |
+| Stiffness |  --  |      --      |        --        |    --     |      ✔      |
 ```text
 -- This platform does not have this indicator
 ✔ The calculation results are consistent with this platform
