@@ -1,6 +1,9 @@
 package banta
 
-import "errors"
+import (
+	"errors"
+	"sync"
+)
 
 var (
 	ErrInvalidSeriesVal = errors.New("invalid val for Series")
@@ -38,14 +41,15 @@ type BarEnv struct {
 }
 
 type Series struct {
-	ID    int
-	Env   *BarEnv
-	Data  []float64
-	Cols  []*Series
-	Time  int64
-	More  interface{}
-	Subs  map[string]map[int]*Series // 由此序列派生的；function：hash：object
-	XLogs map[int]*CrossLog          // 此序列交叉记录
+	ID      int
+	Env     *BarEnv
+	Data    []float64
+	Cols    []*Series
+	Time    int64
+	More    interface{}
+	Subs    map[string]map[int]*Series // 由此序列派生的；function：hash：object
+	XLogs   map[int]*CrossLog          // 此序列交叉记录
+	subLock *sync.Mutex
 }
 
 type CrossLog struct {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"sync"
 )
 
 func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume, info float64) {
@@ -68,7 +69,8 @@ func (e *BarEnv) TrimOverflow() {
 func (e *BarEnv) NewSeries(data []float64) *Series {
 	subs := make(map[string]map[int]*Series)
 	xlogs := make(map[int]*CrossLog)
-	res := &Series{e.VNum, e, data, nil, e.TimeStart, nil, subs, xlogs}
+	lock := &sync.Mutex{}
+	res := &Series{e.VNum, e, data, nil, e.TimeStart, nil, subs, xlogs, lock}
 	e.VNum += 1
 	return res
 }
@@ -197,11 +199,13 @@ func (s *Series) Len() int {
 }
 
 func (s *Series) Cut(keepNum int) {
+	s.subLock.Lock()
 	for _, dv := range s.Subs {
 		for _, v := range dv {
 			v.Cut(keepNum)
 		}
 	}
+	s.subLock.Unlock()
 	if len(s.Cols) > 0 {
 		for _, col := range s.Cols {
 			col.Cut(keepNum)
@@ -245,11 +249,13 @@ func (s *Series) objVal(rel string, obj interface{}) (*Series, float64) {
 }
 
 func (s *Series) To(k string, v int) *Series {
+	s.subLock.Lock()
 	sub, _ := s.Subs[k]
 	if sub == nil {
 		sub = make(map[int]*Series)
 		s.Subs[k] = sub
 	}
+	s.subLock.Unlock()
 	old, _ := sub[v]
 	if old == nil {
 		old = s.Env.NewSeries(nil)
