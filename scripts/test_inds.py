@@ -357,5 +357,15 @@ def test_alma():
     print_tares(None, None, None, pta_res)
 
 
+def test_crsi():
+    chg = close_col / close_col.shift(1)
+    updown = np.where(chg.gt(1), 1.0, np.where(chg.lt(1), -1.0, 0.0))
+    rsi = ta.RSI(close_arr, timeperiod=3)
+    ud = ta.RSI(updown, timeperiod=2)
+    roc = ta.ROC(close_arr, 20)
+    crsi = (rsi + ud + roc) / 3
+    print_tares(crsi)
+
+
 if __name__ == '__main__':
-    test_alma()
+    test_crsi()

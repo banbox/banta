@@ -371,6 +371,106 @@ func RSI50(obj *Series, period int) *Series {
 	return rsiBy(obj, period, 50)
 }
 
+/*
+CRSIBy Connors RSI
+
+suggest period:3, upDn:2, roc:100
+
+Basically the same as TradingView
+*/
+func CRSI(obj *Series, period, upDn, roc int) *Series {
+	return CRSIBy(obj, period, upDn, roc, 0)
+}
+
+/*
+CRSIBy Connors RSI
+
+suggest period:3, upDn:2, roc:100
+
+vtype: 0 Calculation in TradingView method
+
+1 Calculation in ta-lib community method:
+
+	chg = close_col / close_col.shift(1)
+	updown = np.where(chg.gt(1), 1.0, np.where(chg.lt(1), -1.0, 0.0))
+	rsi = ta.RSI(close_arr, timeperiod=3)
+	ud = ta.RSI(updown, timeperiod=2)
+	roc = ta.ROC(close_arr, 100)
+	crsi = (rsi + ud + roc) / 3
+*/
+func CRSIBy(obj *Series, period, upDn, roc, vtype int) *Series {
+	res := obj.To("_crsi", roc*100000+vtype*10000+upDn*100+period)
+	if res.Cached() {
+		return res
+	}
+	rsi := RSI(obj, period).Get(0)
+	ud := RSI(UpDown(obj, vtype), upDn).Get(0)
+	var rc float64
+	if vtype == 0 {
+		rc = PercentRank(ROC(obj, 1), roc).Get(0)
+	} else {
+		rc = ROC(obj, roc).Get(0)
+	}
+	return res.Append((rsi + ud + rc) / 3)
+}
+
+/*
+UpDown
+
+vtype: 0 TradingView (Count consecutive times)
+
+1 classic (abs count up to 1)
+*/
+func UpDown(obj *Series, vtype int) *Series {
+	res := obj.To("_updn", vtype)
+	if res.Cached() {
+		return res
+	}
+	old := res.Get(0)
+	sub := obj.Get(0) - obj.Get(1)
+	var resVal float64
+	if sub == 0 {
+		resVal = 0
+	} else if sub > 0 {
+		if old > 0 && vtype == 0 {
+			resVal = old + 1
+		} else {
+			resVal = 1
+		}
+	} else {
+		if old < 0 && vtype == 0 {
+			resVal = old - 1
+		} else {
+			resVal = -1
+		}
+	}
+	return res.Append(resVal)
+}
+
+/*
+PercentRank
+
+calculates the percentile rank of a bar value in a data set.
+*/
+func PercentRank(obj *Series, period int) *Series {
+	res := obj.To("_pecRk", period)
+	if res.Cached() {
+		return res
+	}
+	vals := obj.Range(0, period)
+	if len(vals) < period {
+		return res.Append(math.NaN())
+	}
+	lowNum := float64(0)
+	curV := vals[0]
+	for i := 1; i < period; i++ {
+		if vals[i] <= curV {
+			lowNum += 1
+		}
+	}
+	return res.Append(lowNum * 100 / float64(period))
+}
+
 func Highest(obj *Series, period int) *Series {
 	res := obj.To("_hh", period)
 	if res.Cached() {
