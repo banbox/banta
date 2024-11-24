@@ -18,13 +18,22 @@ func AvgPrice(e *BarEnv) *Series {
 	return res.Append(avgPrice)
 }
 
-func HL2(e *BarEnv) *Series {
-	res := e.Close.To("_hl", 0)
+func HL2(h, l *Series) *Series {
+	res := l.To("_hl", 0)
 	if res.Cached() {
 		return res
 	}
-	avgPrice := (e.High.Get(0) + e.Low.Get(0)) / 2
+	avgPrice := (h.Get(0) + l.Get(0)) / 2
 	return res.Append(avgPrice)
+}
+
+// HLC3 typical price=(h+l+c)/3
+func HLC3(h, l, c *Series) *Series {
+	res := c.To("_hlc3", 0)
+	if res.Cached() {
+		return res
+	}
+	return res.Append((h.Get(0) + l.Get(0) + c.Get(0)) / 3)
 }
 
 type sumState struct {
@@ -372,7 +381,7 @@ func RSI50(obj *Series, period int) *Series {
 }
 
 /*
-CRSIBy Connors RSI
+CRSI Connors RSI
 
 suggest period:3, upDn:2, roc:100
 
@@ -844,7 +853,7 @@ func ROC(obj *Series, period int) *Series {
 	return res.Append((curVal - preVal) / preVal * 100)
 }
 
-// HeikinAshi 计算Heikin-Ashi
+// HeikinAshi return [open,high,low,close]
 func HeikinAshi(e *BarEnv) *Series {
 	res := e.Close.To("_heikin", 0)
 	if res.Cached() {

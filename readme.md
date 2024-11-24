@@ -33,7 +33,7 @@ Some indicators such as KDJ generally return two fields k and d `kdjRes := ta.KD
 | RMA         |  --  |      --      |        --        |    T1     |     --      |
 | VWMA        |  --  |      --      |        --        |     ✔     |      ✔      |
 | WMA         |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
-| HWMA        |  --  |      --      |        --        |     ✔     |      ✔      |
+| HMA         |  --  |      --      |        --        |     ✔     |      ✔      |
 | TR          |  --  |      ✔       |        ✔         |     ✔     |     --      |
 | ATR         |  T1  |      ✔       |        ✔         |    T2     |     T3      |
 | MACD        |  T1  |      T2      |        T1        |     ✔     |     T3      |
