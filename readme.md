@@ -39,6 +39,7 @@ Some indicators such as KDJ generally return two fields k and d `kdjRes := ta.KD
 | MACD        |  T1  |      T2      |        T1        |     ✔     |     T3      |
 | RSI         |  T1  |      ✔       |        ✔         |    T2     |     T3      |
 | KDJ         |  T1  |      T2      |        T1        |    T3     |      ✔      |
+| Stoch       |  --  |      ✔       |        ✔         |    --     |      ✔      |
 | BBANDS      |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
 | Aroon       |  --  |      ✔       |        ✔         |     ✔     |     T1      |
 | ADX         |  --  |      ✔       |        ✔         |    T1     |     T2      |

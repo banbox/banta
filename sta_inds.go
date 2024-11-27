@@ -1131,6 +1131,8 @@ func WillR(e *BarEnv, period int) *Series {
 StochRSI StochasticRSI
 
 rsiLen: 14, stochLen: 14, maK: 3, maD: 3
+
+return [fastK, fastD]
 */
 func StochRSI(obj *Series, rsiLen int, stochLen int, maK int, maD int) *Series {
 	res := obj.To("_stoch_rsi", rsiLen*100000+stochLen*1000+maK*10+maD)

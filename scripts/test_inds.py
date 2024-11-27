@@ -196,7 +196,17 @@ def test_kdj():
     pta_df = pta.kdj(high_col, low_col, close_col, 9, 3, talib=False)
     pta_k, pta_d, pta_j = pta_df['K_9_3'], pta_df['D_9_3'], pta_df['J_9_3']
     print_tares(ta2_k, ta_k, mk, pta_k)
-    
+
+
+def test_stoch():
+    import talib.abstract as tb
+    ta.set_compatibility(1)
+    df = pd.DataFrame(dict(high=high_col, low=low_col, close=close_col))
+    cols = tb.STOCHF(df, 5,3,0,3,0)
+    ta.set_compatibility(0)
+    cols2 = tb.STOCHF(df, 5,3,0,3,0)
+    print_tares(cols2['fastk'].to_numpy(), cols['fastk'].to_numpy())
+
 
 def test_bband():
     ta.set_compatibility(1)
@@ -226,8 +236,8 @@ def test_adx():
 def test_roc():
     ta.set_compatibility(1)
     period = 9
-    mytt_res = mytt.ROC(close_arr, period)
-    ta_res = ta.ROC(close_arr, timeperiod=period)[0]
+    mytt_res = mytt.ROC(close_arr, period)[0]
+    ta_res = ta.ROC(close_arr, timeperiod=period)
     ta.set_compatibility(0)
     ta2_res = ta.ROC(close_arr, timeperiod=period)
     print_tares(ta_res, ta2_res, mytt_res)
@@ -368,4 +378,4 @@ def test_crsi():
 
 
 if __name__ == '__main__':
-    test_crsi()
+    test_roc()

@@ -75,6 +75,10 @@ func (e *BarEnv) NewSeries(data []float64) *Series {
 	return res
 }
 
+func (e *BarEnv) BarCount(start int64) float64 {
+	return float64(e.TimeStop-start) / float64(e.TFMSecs)
+}
+
 func (s *Series) Set(obj interface{}) *Series {
 	if !s.Cached() {
 		return s.Append(obj)
@@ -179,6 +183,28 @@ func (s *Series) Mul(obj interface{}) *Series {
 	return res.Append(s.Get(0) * val)
 }
 
+func (s *Series) Min(obj interface{}) *Series {
+	if len(s.Cols) > 0 {
+		panic(ErrGetDataOfMerged)
+	}
+	res, val := s.objVal("_min", obj)
+	if res.Cached() {
+		return res
+	}
+	return res.Append(math.Min(s.Get(0), val))
+}
+
+func (s *Series) Max(obj interface{}) *Series {
+	if len(s.Cols) > 0 {
+		panic(ErrGetDataOfMerged)
+	}
+	res, val := s.objVal("_max", obj)
+	if res.Cached() {
+		return res
+	}
+	return res.Append(math.Max(s.Get(0), val))
+}
+
 func (s *Series) Abs() *Series {
 	if len(s.Cols) > 0 {
 		panic(ErrGetDataOfMerged)
@@ -235,7 +261,11 @@ func (s *Series) Back(num int) *Series {
 
 func (s *Series) objVal(rel string, obj interface{}) (*Series, float64) {
 	if ser, ok := obj.(*Series); ok {
-		return s.To(rel, ser.ID), ser.Get(0)
+		par := s
+		if ser.ID < s.ID {
+			par = ser
+		}
+		return par.To(rel, ser.ID), ser.Get(0)
 	} else if intVal, ok := obj.(int); ok {
 		return s.To(rel, intVal), float64(intVal)
 	} else if flt32Val, ok := obj.(float32); ok {
