@@ -233,6 +233,20 @@ def test_adx():
     print_tares(ta_res, ta2_res, None, pta_res)
 
 
+def test_minusDi():
+    ta.set_compatibility(1)
+    period = 9
+    ta_res = ta.MINUS_DI(high_arr, low_arr, close_arr, timeperiod=period)
+    print_tares(ta_res)
+
+
+def test_pluMinDm():
+    ta.set_compatibility(1)
+    period = 9
+    ta_res = ta.PLUS_DM(high_arr, low_arr, timeperiod=period)
+    print_tares(ta_res)
+
+
 def test_roc():
     ta.set_compatibility(1)
     period = 9
@@ -378,4 +392,4 @@ def test_crsi():
 
 
 if __name__ == '__main__':
-    test_roc()
+    test_pluMinDm()

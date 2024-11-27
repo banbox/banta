@@ -751,13 +751,6 @@ func ADX(high *Series, low *Series, close *Series, period int) *Series {
 	return ADXBy(high, low, close, period, 0)
 }
 
-type adxState struct {
-	Num     int     // 计算次数
-	DmPosMA float64 // 缓存DMPos的均值
-	DmNegMA float64 // 缓存DMNeg的均值
-	TRMA    float64 // 缓存TR的均值
-}
-
 /*
 	ADXBy Average Directional Index
 
@@ -769,11 +762,91 @@ suggest period: 14
 return [maDX, plusDI, minusDI]
 */
 func ADXBy(high *Series, low *Series, close *Series, period int, method int) *Series {
+	di := pluMinDIBy(high, low, close, period, method)
+
 	// 初始化相关的系列
-	dx := close.To("_dx", period*1000+method)
-	adx := close.To("_adx", period*1000+method)
+	dx := di.To("_dx", period*10+method)
+	adx := di.To("_adx", period*10+method)
 	if adx.Cached() {
 		return adx
+	}
+
+	plusDI := di.Cols[0].Get(0)
+	if math.IsNaN(plusDI) {
+		dx.Append(math.NaN())
+		return adx.Append(math.NaN())
+	}
+	minusDI := di.Cols[1].Get(0)
+	dx.Append(math.Abs(plusDI-minusDI) / (plusDI + minusDI) * 100)
+
+	var maDX float64
+	if method == 0 {
+		maDX = RMA(dx, period).Get(0)
+	} else {
+		maDX = SMA(dx, period).Get(0)
+	}
+	return adx.Append(maDX)
+}
+
+type dmState struct {
+	Num     int     // 计算次数
+	DmPosMA float64 // 缓存DMPos的均值
+	DmNegMA float64 // 缓存DMNeg的均值
+	TRMA    float64 // 缓存TR的均值
+}
+
+/*
+PluMinDI
+
+suggest period: 14
+
+return [plus di, minus di]
+*/
+func PluMinDI(high *Series, low *Series, close *Series, period int) *Series {
+	return pluMinDIBy(high, low, close, period, 0)
+}
+
+func pluMinDIBy(high *Series, low *Series, close *Series, period, method int) *Series {
+	dm := pluMinDMBy(high, low, close, period, method)
+	res := dm.To("_PluMinDI", period*10+method)
+	if res.Cached() {
+		return res
+	}
+
+	plusDm := dm.Cols[0].Get(0)
+	if math.IsNaN(plusDm) {
+		return res.Append([]float64{math.NaN(), math.NaN()})
+	}
+
+	// calc dx
+	state, _ := dm.More.(*dmState)
+	plusDI := 100 * state.DmPosMA / state.TRMA
+	minusDI := 100 * state.DmNegMA / state.TRMA
+	return res.Append([]float64{plusDI, minusDI})
+}
+
+/*
+PluMinDM
+
+suggest period: 14
+
+return [Plus DM, Minus DM]
+*/
+func PluMinDM(high *Series, low *Series, close *Series, period int) *Series {
+	return pluMinDMBy(high, low, close, period, 0)
+}
+
+/*
+method=0 classic, use period as initLen
+method=1 use period+1 as initLen, for TradingView "ADX and DI for v4"
+
+return [Plus DM, Minus DM]
+*/
+func pluMinDMBy(high *Series, low *Series, close *Series, period, method int) *Series {
+	// 初始化相关的系列
+	res := close.To("_PluMinDM", period*10+method)
+	if res.Cached() {
+		return res
 	}
 
 	// 计算 DMH 和 DML
@@ -788,10 +861,10 @@ func ADXBy(high *Series, low *Series, close *Series, period int, method int) *Se
 
 	// 计算 TR
 	tr := TR(high, low, close).Get(0)
-	state, _ := adx.More.(*adxState)
+	state, _ := res.More.(*dmState)
 	if state == nil {
-		state = &adxState{}
-		adx.More = state
+		state = &dmState{}
+		res.More = state
 	}
 	state.Num += 1
 	if math.IsNaN(tr) && math.IsNaN(close.Get(0)) {
@@ -815,27 +888,14 @@ func ADXBy(high *Series, low *Series, close *Series, period int, method int) *Se
 			state.TRMA += tr
 		}
 		if state.Num <= period {
-			dx.Append(math.NaN())
-			return adx.Append([]float64{math.NaN(), math.NaN(), math.NaN()})
+			return res.Append([]float64{math.NaN(), math.NaN()})
 		}
 	} else {
 		state.DmPosMA = state.DmPosMA*(1-alpha) + plusDM
 		state.DmNegMA = state.DmNegMA*(1-alpha) + minusDM
 		state.TRMA = state.TRMA*(1-alpha) + tr
 	}
-
-	// calc dx
-	plusDI := 100 * state.DmPosMA / state.TRMA
-	minusDI := 100 * state.DmNegMA / state.TRMA
-	dx.Append(math.Abs(plusDI-minusDI) / (plusDI + minusDI) * 100)
-
-	var maDX float64
-	if method == 0 {
-		maDX = RMA(dx, period).Get(0)
-	} else {
-		maDX = SMA(dx, period).Get(0)
-	}
-	return adx.Append([]float64{maDX, plusDI, minusDI})
+	return res.Append([]float64{state.DmPosMA, state.DmNegMA})
 }
 
 /*

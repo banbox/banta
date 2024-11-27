@@ -44,6 +44,8 @@ Some indicators such as KDJ generally return two fields k and d `kdjRes := ta.KD
 | Aroon       |  --  |      ✔       |        ✔         |     ✔     |     T1      |
 | ADX         |  --  |      ✔       |        ✔         |    T1     |     T2      |
 | ADXBy1      |  --  |      T1      |        T1        |    T2     |      ✔      |
+| PluMinDI    |  --  |      ✔       |        ✔         |    --     |     --      |
+| PluMinDM    |  --  |      ✔       |        ✔         |    --     |     --      |
 | ROC         |  ✔   |      ✔       |        ✔         |    --     |      ✔      |
 | TNR/ER      |  --  |      --      |        --        |    --     |     --      |
 | CCI         |  ✔   |      ✔       |        ✔         |     ✔     |      ✔      |
