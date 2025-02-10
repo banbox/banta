@@ -7,9 +7,9 @@ import (
 	"sync"
 )
 
-func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume, info float64) {
+func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume, info float64) error {
 	if e.TimeStop > barMs {
-		panic(fmt.Errorf("%s/%s old Bar Receive: %d, Current: %d", e.Symbol, e.TimeFrame, barMs, e.TimeStop))
+		return fmt.Errorf("%s/%s old Bar Receive: %d, Current: %d", e.Symbol, e.TimeFrame, barMs, e.TimeStop)
 	}
 	e.TimeStart = barMs
 	e.TimeStop = barMs + e.TFMSecs
@@ -40,6 +40,7 @@ func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume, info float64
 		e.Info.Data = append(e.Info.Data, info)
 		e.TrimOverflow()
 	}
+	return nil
 }
 
 func (e *BarEnv) Reset() {
