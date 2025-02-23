@@ -1553,9 +1553,9 @@ type dv2Sta struct {
 }
 
 /*
-DV2 Developed by David Varadi of http://cssanalytics.wordpress.com/
+DV Developed by David Varadi of http://cssanalytics.wordpress.com/
 
-	maLen: 2  period: 252
+	period: 252   maLen: 2
 
 	This seems to be the *Bounded* version.
 
@@ -1564,8 +1564,8 @@ DV2 Developed by David Varadi of http://cssanalytics.wordpress.com/
 	  - http://web.archive.org/web/20131216100741/http://quantingdutchman.wordpress.com/2010/08/06/dv2-indicator-for-amibroker/
 	  - https://www.reddit.com/r/CapitalistExploits/comments/1d0azms/david_varadis_dv2_indicator_trading_strategies/
 */
-func DV2(h, l, c *Series, period, maLen int) *Series {
-	res := c.To("_dv2", period*100+maLen)
+func DV(h, l, c *Series, period, maLen int) *Series {
+	res := c.To("_dv", period*100+maLen)
 	if res.Cached() {
 		return res
 	}
@@ -1592,7 +1592,7 @@ func DV2(h, l, c *Series, period, maLen int) *Series {
 		}
 		dvVal := sum / float64(maLen)
 		sta.dv = append(sta.dv, dvVal)
-		if chlLen > maLen*2 {
+		if chlLen > maLen*3 {
 			sta.chl = sta.chl[chlLen-maLen:]
 		}
 		if len(sta.dv) >= period {
@@ -1606,10 +1606,162 @@ func DV2(h, l, c *Series, period, maLen int) *Series {
 					equalNum += 1
 				}
 			}
+			if len(sta.dv) >= period*3 {
+				sta.dv = vals
+			}
 			hitNum := lowNum + (equalNum+1)/2
 			return res.Append(hitNum * 100 / float64(period))
 		} else {
 			return res.Append(math.NaN())
 		}
 	}
+}
+
+/*
+UTBot UT Bot Alerts from TradingView
+*/
+func UTBot(c, atr *Series, rate float64) *Series {
+	res := atr.To("_utBot", int(rate*10))
+	if res.Cached() {
+		return res
+	}
+	prevXATRTrailingStop, _ := res.More.(float64)
+	nLoss := atr.Mul(rate).Get(0)
+	// 计算动态止损线
+	price := c.Get(0)
+	prevSrc := c.Get(1)
+	if math.IsNaN(nLoss) {
+		return res.Append(math.NaN())
+	}
+	var xATRTrailingStop float64
+	if prevXATRTrailingStop == 0 { // 初始状态
+		xATRTrailingStop = price - nLoss
+	} else {
+		//根据价格与前一止损线的关系动态调整止损位：
+		prevStop := prevXATRTrailingStop
+		if price > prevStop && prevSrc > prevStop {
+			//价格上涨且持续高于止损线时，上移止损。
+			xATRTrailingStop = math.Max(prevStop, price-nLoss)
+		} else if price < prevStop && prevSrc < prevStop {
+			//价格下跌且持续低于止损线时，下移止损。
+			xATRTrailingStop = math.Min(prevStop, price+nLoss)
+		} else {
+			//价格反向突破时，重置止损。
+			if price > prevStop {
+				xATRTrailingStop = price - nLoss
+			} else {
+				xATRTrailingStop = price + nLoss
+			}
+		}
+	}
+
+	// 信号判断
+	above := prevSrc <= prevXATRTrailingStop && price > xATRTrailingStop
+	below := prevSrc >= prevXATRTrailingStop && price < xATRTrailingStop
+	// 更新状态
+	res.More = xATRTrailingStop
+
+	if price > xATRTrailingStop && above {
+		return res.Append(1)
+	} else if price < xATRTrailingStop && below {
+		return res.Append(-1)
+	} else {
+		return res.Append(0)
+	}
+}
+
+// (cur-min)*100/(max-min)
+func calcHLRangePct(his []float64, cur float64) float64 {
+	if len(his) == 0 {
+		return 0
+	}
+	// 查找窗口内的极值
+	minVal, maxVal := math.MaxFloat64, -math.MaxFloat64
+	for _, val := range his {
+		if val < minVal {
+			minVal = val
+		} else if val > maxVal {
+			maxVal = val
+		}
+	}
+
+	// 计算百分比
+	rangeSize := maxVal - minVal
+	if rangeSize > 0 {
+		return (cur - minVal) / rangeSize * 100
+	}
+	return 0
+}
+
+type stcSta struct {
+	macdHis []float64 // MACD差值窗口
+	dddHis  []float64 // DDD平滑值窗口
+	prevDDD float64   // 前周期第一层平滑值
+	prevSTC float64   // 前周期最终STC值
+}
+
+/*
+STC colored indicator
+
+period: 12  fast: 26  slow: 50  alpha: 0.5
+
+https://www.tradingview.com/u/shayankm/
+*/
+func STC(obj *Series, period, fast, slow int, alpha float64) *Series {
+	res := obj.To("_stc", fast*10000+slow*100+period)
+	if res.Cached() {
+		return res
+	}
+	s, _ := res.More.(*stcSta)
+	if s == nil {
+		s = &stcSta{}
+		res.More = s
+	}
+	// 1. 计算MACD差值
+	fastEMA := EMA(obj, fast).Get(0)
+	slowEMA := EMA(obj, slow).Get(0)
+	macd := fastEMA - slowEMA
+	if math.IsNaN(macd) {
+		if !math.IsNaN(s.prevDDD) {
+			s.macdHis = nil
+			s.dddHis = nil
+			s.prevDDD = math.NaN()
+			s.prevSTC = math.NaN()
+		}
+		return res.Append(math.NaN())
+	}
+
+	// 2. 维护MACD窗口（保持长度为Length）
+	s.macdHis = append(s.macdHis, macd)
+	if len(s.macdHis) > period {
+		s.macdHis = s.macdHis[1:]
+	}
+
+	// 3. 计算第一层百分比
+	ccccc := calcHLRangePct(s.macdHis, macd)
+
+	// 4. 计算第一层平滑值
+	ddd := ccccc
+	if !math.IsNaN(s.prevDDD) {
+		ddd = s.prevDDD + alpha*(ccccc-s.prevDDD)
+	}
+	s.prevDDD = ddd
+
+	// 5. 维护DDD窗口
+	s.dddHis = append(s.dddHis, ddd)
+	if len(s.dddHis) > period {
+		s.dddHis = s.dddHis[1:]
+	}
+
+	// 6. 计算第二层百分比
+	dddddd := calcHLRangePct(s.dddHis, ddd)
+
+	// 7. 计算最终STC值
+	stc := dddddd
+	if !math.IsNaN(s.prevSTC) {
+		stc = s.prevSTC + alpha*(dddddd-s.prevSTC)
+	}
+	s.prevSTC = stc
+
+	return res.Append(stc)
 }

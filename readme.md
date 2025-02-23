@@ -65,7 +65,9 @@ Some indicators such as KDJ generally return two fields k and d `kdjRes := ta.KD
 | PercentRank |  --  |      --      |        --        |    --     |     ✔~      |
 | CRSI        |  --  |      --      |        --        |    --     |     ✔~      |
 | CRSIBy1     |  --  |  community   |        --        |    --     |     --      |
-| DV2         |  --  |      --      |        --        |    --     |     --      |
+| DV          |  --  |      --      |        --        |    --     |     --      |
+| UTBot       |  --  |      --      |        --        |    --     |      ✔      |
+| STC         |  --  |      --      |        --        |    --     |      ✔      |
 ```text
 -- This platform does not have this indicator
 ✔ The calculation results are consistent with this platform
