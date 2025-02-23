@@ -1546,3 +1546,70 @@ func Stiffness(obj *Series, maLen, stiffLen, stiffMa int) *Series {
 	}
 	return EMA(Sum(above, stiffLen), stiffMa)
 }
+
+type dv2Sta struct {
+	chl []float64
+	dv  []float64
+}
+
+/*
+DV2 Developed by David Varadi of http://cssanalytics.wordpress.com/
+
+	maLen: 2  period: 252
+
+	This seems to be the *Bounded* version.
+
+	See also:
+
+	  - http://web.archive.org/web/20131216100741/http://quantingdutchman.wordpress.com/2010/08/06/dv2-indicator-for-amibroker/
+	  - https://www.reddit.com/r/CapitalistExploits/comments/1d0azms/david_varadis_dv2_indicator_trading_strategies/
+*/
+func DV2(h, l, c *Series, period, maLen int) *Series {
+	res := c.To("_dv2", period*100+maLen)
+	if res.Cached() {
+		return res
+	}
+	sta, _ := res.More.(*dv2Sta)
+	if sta == nil {
+		sta = &dv2Sta{}
+		res.More = sta
+	}
+	// calc close*2/(high+low)
+	chl := (h.Get(0) + l.Get(0)) / 2
+	if chl != 0 && !math.IsNaN(chl) {
+		chl = c.Get(0)/chl - 1
+	}
+	sta.chl = append(sta.chl, chl)
+	// apply maLen to chl
+	chlLen := len(sta.chl)
+	if chlLen < maLen {
+		sta.dv = append(sta.dv, 0)
+		return res.Append(math.NaN())
+	} else {
+		sum := float64(0)
+		for i := chlLen - maLen; i < chlLen; i++ {
+			sum += sta.chl[i]
+		}
+		dvVal := sum / float64(maLen)
+		sta.dv = append(sta.dv, dvVal)
+		if chlLen > maLen*2 {
+			sta.chl = sta.chl[chlLen-maLen:]
+		}
+		if len(sta.dv) >= period {
+			// percent rank for dv
+			lowNum, equalNum := float64(0), float64(0)
+			vals := sta.dv[len(sta.dv)-period:]
+			for i := 0; i < period; i++ {
+				if vals[i] < dvVal {
+					lowNum += 1
+				} else if vals[i] == dvVal {
+					equalNum += 1
+				}
+			}
+			hitNum := lowNum + (equalNum+1)/2
+			return res.Append(hitNum * 100 / float64(period))
+		} else {
+			return res.Append(math.NaN())
+		}
+	}
+}
