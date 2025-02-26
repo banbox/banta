@@ -84,7 +84,8 @@ func TestCommon(t *testing.T) {
 			return ATR(env.High, env.Low, env.Close, 14).Get(0)
 		}},
 		{"macd", macdArr, func() float64 {
-			return MACD(env.Close, 12, 26, 9).Cols[0].Get(0)
+			macd, _ := MACD(env.Close, 12, 26, 9)
+			return macd.Get(0)
 		}},
 		{"rsi", rsiArr, func() float64 {
 			return RSI(env.Close, 14).Get(0)
@@ -99,28 +100,35 @@ func TestCommon(t *testing.T) {
 			return PercentRank(env.Close, 20).Get(0)
 		}},
 		{"kdj", kdjKArr, func() float64 {
-			return KDJ(env.High, env.Low, env.Close, 9, 3, 3).Cols[0].Get(0)
+			k, _, _ := KDJ(env.High, env.Low, env.Close, 9, 3, 3)
+			return k.Get(0)
 		}},
 		{"stoch", stochArr, func() float64 {
 			return Stoch(env.High, env.Low, env.Close, 5).Get(0)
 		}},
 		{"kdj_sma", smaKdjKArr, func() float64 {
-			return KDJBy(env.High, env.Low, env.Close, 9, 3, 3, "sma").Cols[0].Get(0)
+			k, _, _ := KDJBy(env.High, env.Low, env.Close, 9, 3, 3, "sma")
+			return k.Get(0)
 		}},
 		{"aroonUp", aroonUpArr, func() float64 {
-			return Aroon(env.High, env.Low, 9).Cols[0].Get(0)
+			aroon, _, _ := Aroon(env.High, env.Low, 9)
+			return aroon.Get(0)
 		}},
 		{"aroonDn", aroonDnArr, func() float64 {
-			return Aroon(env.High, env.Low, 9).Cols[2].Get(0)
+			_, _, aroonDn := Aroon(env.High, env.Low, 9)
+			return aroonDn.Get(0)
 		}},
 		{"aroonOsc", aroonOscArr, func() float64 {
-			return Aroon(env.High, env.Low, 9).Cols[1].Get(0)
+			_, aroon, _ := Aroon(env.High, env.Low, 9)
+			return aroon.Get(0)
 		}},
 		{"stdDev", stdDevArr, func() float64 {
-			return StdDev(env.Close, 5).Cols[0].Get(0)
+			stdDev, _ := StdDev(env.Close, 5)
+			return stdDev.Get(0)
 		}},
 		{"BBands", bbandArr, func() float64 {
-			return BBANDS(env.Close, 7, 2, 2).Cols[0].Get(0)
+			bbands, _, _ := BBANDS(env.Close, 7, 2, 2)
+			return bbands.Get(0)
 		}},
 		{"TD", tdArr, func() float64 {
 			return TD(env.Close).Get(0)
@@ -129,10 +137,12 @@ func TestCommon(t *testing.T) {
 			return ADX(env.High, env.Low, env.Close, 9).Get(0)
 		}},
 		{"MinusDI", minusDiArr, func() float64 {
-			return PluMinDI(env.High, env.Low, env.Close, 9).Cols[1].Get(0)
+			_, minusDi := PluMinDI(env.High, env.Low, env.Close, 9)
+			return minusDi.Get(0)
 		}},
 		{"PluMinDM", pluMinDmArr, func() float64 {
-			return PluMinDM(env.High, env.Low, env.Close, 9).Cols[0].Get(0)
+			plusDm, _ := PluMinDM(env.High, env.Low, env.Close, 9)
+			return plusDm.Get(0)
 		}},
 		{"ADXBy", adxByArr, func() float64 {
 			return ADXBy(env.High, env.Low, env.Close, 9, 1).Get(0)
@@ -141,7 +151,8 @@ func TestCommon(t *testing.T) {
 			return ROC(env.Close, 9).Get(0)
 		}},
 		{"HeikinAshi", heiKenArr, func() float64 {
-			return HeikinAshi(env).Cols[0].Get(0)
+			hkOpen, _, _, _ := HeikinAshi(env)
+			return hkOpen.Get(0)
 		}},
 		{"ER", tnrArr, func() float64 {
 			return ER(env.Close, 10).Get(0)
@@ -160,7 +171,8 @@ func TestCommon(t *testing.T) {
 			return WillR(env, 10).Get(0)
 		}},
 		{"StochRSI", stochRsiArr, func() float64 {
-			return StochRSI(env.Close, 9, 9, 3, 3).Cols[0].Get(0)
+			srsi, _ := StochRSI(env.Close, 9, 9, 3, 3)
+			return srsi.Get(0)
 		}},
 		{"MFI", mfiArr, func() float64 {
 			return MFI(env, 10).Get(0)

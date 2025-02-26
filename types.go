@@ -7,7 +7,6 @@ import (
 
 var (
 	ErrInvalidSeriesVal = errors.New("invalid val for Series")
-	ErrGetDataOfMerged  = errors.New("try get Data of merged series var")
 )
 
 type Kline struct {

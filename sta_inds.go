@@ -306,20 +306,20 @@ fast: 12, slow: 26, smooth: 9
 
 return [macd, signal]
 */
-func MACD(obj *Series, fast int, slow int, smooth int) *Series {
+func MACD(obj *Series, fast int, slow int, smooth int) (*Series, *Series) {
 	return MACDBy(obj, fast, slow, smooth, 0)
 }
 
-func MACDBy(obj *Series, fast int, slow int, smooth int, initType int) *Series {
+func MACDBy(obj *Series, fast int, slow int, smooth int, initType int) (*Series, *Series) {
 	res := obj.To("_macd", fast*1000+slow*100+smooth*10+initType)
-	if res.Cached() {
-		return res
+	if !res.Cached() {
+		short := EMABy(obj, fast, initType)
+		long := EMABy(obj, slow, initType)
+		macd := short.Sub(long)
+		signal := EMABy(macd, smooth, initType)
+		res.Append([]float64{macd.Get(0), signal.Get(0)})
 	}
-	short := EMABy(obj, fast, initType)
-	long := EMABy(obj, slow, initType)
-	macd := short.Sub(long)
-	signal := EMABy(macd, smooth, initType)
-	return res.Append([]*Series{macd, signal})
+	return res, res.Cols[0]
 }
 
 func rsiBy(obj *Series, period int, subVal float64) *Series {
@@ -549,7 +549,7 @@ period: 9, sm1: 3, sm2: 3
 
 return (K, D, RSV)
 */
-func KDJ(high *Series, low *Series, close *Series, period int, sm1 int, sm2 int) *Series {
+func KDJ(high *Series, low *Series, close *Series, period int, sm1 int, sm2 int) (*Series, *Series, *Series) {
 	return KDJBy(high, low, close, period, sm1, sm2, "rma")
 }
 
@@ -567,24 +567,24 @@ period: 9, sm1: 3, sm2: 3
 
 return (K, D, RSV)
 */
-func KDJBy(high *Series, low *Series, close *Series, period int, sm1 int, sm2 int, maBy string) *Series {
+func KDJBy(high *Series, low *Series, close *Series, period int, sm1 int, sm2 int, maBy string) (*Series, *Series, *Series) {
 	byVal, _ := kdjTypes[maBy]
 	res := high.To("_kdj", period*100000+sm1*1000+sm2*10+byVal)
-	if res.Cached() {
-		return res
+	if !res.Cached() {
+		rsv := Stoch(high, low, close, period)
+		if maBy == "rma" {
+			k := RMABy(rsv, sm1, 0, 50)
+			d := RMABy(k, sm2, 0, 50)
+			res.Append([]*Series{k, d, rsv})
+		} else if maBy == "sma" {
+			k := SMA(rsv, sm1)
+			d := SMA(k, sm2)
+			res.Append([]*Series{k, d, rsv})
+		} else {
+			panic(fmt.Sprintf("unknown maBy for KDJ: %s", maBy))
+		}
 	}
-	rsv := Stoch(high, low, close, period)
-	if maBy == "rma" {
-		k := RMABy(rsv, sm1, 0, 50)
-		d := RMABy(k, sm2, 0, 50)
-		return res.Append([]*Series{k, d, rsv})
-	} else if maBy == "sma" {
-		k := SMA(rsv, sm1)
-		d := SMA(k, sm2)
-		return res.Append([]*Series{k, d, rsv})
-	} else {
-		panic(fmt.Sprintf("unknown maBy for KDJ: %s", maBy))
-	}
+	return res, res.Cols[0], res.Cols[1]
 }
 
 /*
@@ -624,16 +624,16 @@ Osc: AroonUp - AroonDn
 
 return [AroonUp, Osc, AroonDn]
 */
-func Aroon(high *Series, low *Series, period int) *Series {
+func Aroon(high *Series, low *Series, period int) (*Series, *Series, *Series) {
 	res := high.To("_aroon", period)
-	if res.Cached() {
-		return res
+	if !res.Cached() {
+		fac := -100 / float64(period)
+		up := HighestBar(high, period+1).Mul(fac).Add(100)
+		dn := LowestBar(low, period+1).Mul(fac).Add(100)
+		osc := up.Sub(dn)
+		res.Append([]*Series{up, osc, dn})
 	}
-	fac := -100 / float64(period)
-	up := HighestBar(high, period+1).Mul(fac).Add(100)
-	dn := LowestBar(low, period+1).Mul(fac).Add(100)
-	osc := up.Sub(dn)
-	return res.Append([]*Series{up, osc, dn})
+	return res, res.Cols[0], res.Cols[1]
 }
 
 /*
@@ -643,7 +643,7 @@ suggest period: 20
 
 return [stddev，sumVal]
 */
-func StdDev(obj *Series, period int) *Series {
+func StdDev(obj *Series, period int) (*Series, *Series) {
 	return StdDevBy(obj, period, 0)
 }
 
@@ -654,34 +654,34 @@ suggest period: 20
 
 return [stddev，sumVal]
 */
-func StdDevBy(obj *Series, period int, ddof int) *Series {
+func StdDevBy(obj *Series, period int, ddof int) (*Series, *Series) {
 	res := obj.To("_sdev", period*10+ddof)
-	if res.Cached() {
-		return res
-	}
-	meanVal := SMA(obj, period).Get(0)
-	var more []float64
-	if res.More == nil {
-		more = make([]float64, 0, period)
-	} else {
-		more = res.More.([]float64)
-	}
+	if !res.Cached() {
+		meanVal := SMA(obj, period).Get(0)
+		var more []float64
+		if res.More == nil {
+			more = make([]float64, 0, period)
+		} else {
+			more = res.More.([]float64)
+		}
 
-	more = append(more, obj.Get(0))
-	if len(more) < period {
-		res.More = more
-		return res.Append([]float64{math.NaN(), math.NaN()})
-	}
+		more = append(more, obj.Get(0))
+		if len(more) < period {
+			res.More = more
+			res.Append([]float64{math.NaN(), math.NaN()})
+		} else {
+			sumSqrt := 0.0
+			for _, x := range more {
+				sumSqrt += (x - meanVal) * (x - meanVal)
+			}
+			variance := sumSqrt / float64(period-ddof)
+			stdDevVal := math.Sqrt(variance)
+			res.More = more[1:]
 
-	sumSqrt := 0.0
-	for _, x := range more {
-		sumSqrt += (x - meanVal) * (x - meanVal)
+			res.Append([]float64{stdDevVal, meanVal})
+		}
 	}
-	variance := sumSqrt / float64(period-ddof)
-	stdDevVal := math.Sqrt(variance)
-	res.More = more[1:]
-
-	return res.Append([]float64{stdDevVal, meanVal})
+	return res, res.Cols[0]
 }
 
 /*
@@ -691,21 +691,21 @@ period: 20, stdUp: 2, stdDn: 2
 
 return [upper, mid, lower]
 */
-func BBANDS(obj *Series, period int, stdUp, stdDn float64) *Series {
+func BBANDS(obj *Series, period int, stdUp, stdDn float64) (*Series, *Series, *Series) {
 	res := obj.To("_bb", period*10000+int(stdUp*1000)+int(stdDn*10))
-	if res.Cached() {
-		return res
-	}
-	stdDevCols := StdDev(obj, period).Cols
-	dev, mean := stdDevCols[0].Get(0), stdDevCols[1].Get(0)
-	if math.IsNaN(dev) {
-		return res.Append([]float64{math.NaN(), math.NaN(), math.NaN()})
-	}
+	if !res.Cached() {
+		devCol, meanCol := StdDev(obj, period)
+		dev, mean := devCol.Get(0), meanCol.Get(0)
+		if math.IsNaN(dev) {
+			res.Append([]float64{math.NaN(), math.NaN(), math.NaN()})
+		} else {
+			upper := mean + dev*stdUp
+			lower := mean - dev*stdDn
 
-	upper := mean + dev*stdUp
-	lower := mean - dev*stdDn
-
-	return res.Append([]float64{upper, mean, lower})
+			res.Append([]float64{upper, mean, lower})
+		}
+	}
+	return res, res.Cols[0], res.Cols[1]
 }
 
 /*
@@ -762,22 +762,23 @@ suggest period: 14
 return [maDX, plusDI, minusDI]
 */
 func ADXBy(high *Series, low *Series, close *Series, period int, method int) *Series {
-	di := pluMinDIBy(high, low, close, period, method)
+	plusDI, minusDI := pluMinDIBy(high, low, close, period, method)
 
 	// 初始化相关的系列
-	dx := di.To("_dx", period*10+method)
-	adx := di.To("_adx", period*10+method)
+	dx := plusDI.To("_dx", period*10+method)
+	adx := plusDI.To("_adx", period*10+method)
 	if adx.Cached() {
 		return adx
 	}
 
-	plusDI := di.Cols[0].Get(0)
-	if math.IsNaN(plusDI) {
+	plusDIVal := plusDI.Get(0)
+	if math.IsNaN(plusDIVal) {
 		dx.Append(math.NaN())
-		return adx.Append(math.NaN())
+		adx.Append(math.NaN())
+		return adx
 	}
-	minusDI := di.Cols[1].Get(0)
-	dx.Append(math.Abs(plusDI-minusDI) / (plusDI + minusDI) * 100)
+	minusDIVal := minusDI.Get(0)
+	dx.Append(math.Abs(plusDIVal-minusDIVal) / (plusDIVal + minusDIVal) * 100)
 
 	var maDX float64
 	if method == 0 {
@@ -785,7 +786,8 @@ func ADXBy(high *Series, low *Series, close *Series, period int, method int) *Se
 	} else {
 		maDX = SMA(dx, period).Get(0)
 	}
-	return adx.Append(maDX)
+	adx.Append(maDX)
+	return adx
 }
 
 type dmState struct {
@@ -802,27 +804,27 @@ suggest period: 14
 
 return [plus di, minus di]
 */
-func PluMinDI(high *Series, low *Series, close *Series, period int) *Series {
+func PluMinDI(high *Series, low *Series, close *Series, period int) (*Series, *Series) {
 	return pluMinDIBy(high, low, close, period, 0)
 }
 
-func pluMinDIBy(high *Series, low *Series, close *Series, period, method int) *Series {
-	dm := pluMinDMBy(high, low, close, period, method)
-	res := dm.To("_PluMinDI", period*10+method)
-	if res.Cached() {
-		return res
+func pluMinDIBy(high *Series, low *Series, close *Series, period, method int) (*Series, *Series) {
+	plusDM, _ := pluMinDMBy(high, low, close, period, method)
+	res := plusDM.To("_PluMinDI", period*10+method)
+	if !res.Cached() {
+		plusDmVal := plusDM.Get(0)
+		if math.IsNaN(plusDmVal) {
+			res.Append([]float64{math.NaN(), math.NaN()})
+		} else {
+			// calc dx
+			state, _ := plusDM.More.(*dmState)
+			plusDI := 100 * state.DmPosMA / state.TRMA
+			minusDI := 100 * state.DmNegMA / state.TRMA
+			res.Append([]float64{plusDI, minusDI})
+		}
 	}
 
-	plusDm := dm.Cols[0].Get(0)
-	if math.IsNaN(plusDm) {
-		return res.Append([]float64{math.NaN(), math.NaN()})
-	}
-
-	// calc dx
-	state, _ := dm.More.(*dmState)
-	plusDI := 100 * state.DmPosMA / state.TRMA
-	minusDI := 100 * state.DmNegMA / state.TRMA
-	return res.Append([]float64{plusDI, minusDI})
+	return res, res.Cols[0]
 }
 
 /*
@@ -832,7 +834,7 @@ suggest period: 14
 
 return [Plus DM, Minus DM]
 */
-func PluMinDM(high *Series, low *Series, close *Series, period int) *Series {
+func PluMinDM(high *Series, low *Series, close *Series, period int) (*Series, *Series) {
 	return pluMinDMBy(high, low, close, period, 0)
 }
 
@@ -842,60 +844,60 @@ method=1 use period+1 as initLen, for TradingView "ADX and DI for v4"
 
 return [Plus DM, Minus DM]
 */
-func pluMinDMBy(high *Series, low *Series, close *Series, period, method int) *Series {
+func pluMinDMBy(high *Series, low *Series, close *Series, period, method int) (*Series, *Series) {
 	// 初始化相关的系列
 	res := close.To("_PluMinDM", period*10+method)
-	if res.Cached() {
-		return res
-	}
+	if !res.Cached() {
+		// 计算 DMH 和 DML
+		dmhVal := high.Get(0) - high.Get(1)
+		dmlVal := low.Get(1) - low.Get(0)
+		plusDM, minusDM := 0.0, 0.0
+		if dmhVal > max(dmlVal, 0) {
+			plusDM = dmhVal
+		} else if dmlVal > max(dmhVal, 0) {
+			minusDM = dmlVal
+		}
 
-	// 计算 DMH 和 DML
-	dmhVal := high.Get(0) - high.Get(1)
-	dmlVal := low.Get(1) - low.Get(0)
-	plusDM, minusDM := 0.0, 0.0
-	if dmhVal > max(dmlVal, 0) {
-		plusDM = dmhVal
-	} else if dmlVal > max(dmhVal, 0) {
-		minusDM = dmlVal
-	}
+		// 计算 TR
+		tr := TR(high, low, close).Get(0)
+		state, _ := res.More.(*dmState)
+		if state == nil {
+			state = &dmState{}
+			res.More = state
+		}
+		state.Num += 1
+		if math.IsNaN(tr) && math.IsNaN(close.Get(0)) {
+			state.Num = 1
+		}
 
-	// 计算 TR
-	tr := TR(high, low, close).Get(0)
-	state, _ := res.More.(*dmState)
-	if state == nil {
-		state = &dmState{}
-		res.More = state
-	}
-	state.Num += 1
-	if math.IsNaN(tr) && math.IsNaN(close.Get(0)) {
-		state.Num = 1
-	}
-
-	// calc Wilder's smoothing of DmH/DmL/TR
-	alpha := 1 / float64(period)
-	initLen := period
-	if method == 1 {
-		initLen = period + 1
-	}
-	if state.Num <= initLen {
-		if math.IsNaN(tr) {
-			state.DmPosMA = 0
-			state.DmNegMA = 0
-			state.TRMA = 0
+		// calc Wilder's smoothing of DmH/DmL/TR
+		alpha := 1 / float64(period)
+		initLen := period
+		if method == 1 {
+			initLen = period + 1
+		}
+		if state.Num <= initLen {
+			if math.IsNaN(tr) {
+				state.DmPosMA = 0
+				state.DmNegMA = 0
+				state.TRMA = 0
+			} else {
+				state.DmPosMA += plusDM
+				state.DmNegMA += minusDM
+				state.TRMA += tr
+			}
+			if state.Num <= period {
+				res.Append([]float64{math.NaN(), math.NaN()})
+				return res, res.Cols[0]
+			}
 		} else {
-			state.DmPosMA += plusDM
-			state.DmNegMA += minusDM
-			state.TRMA += tr
+			state.DmPosMA = state.DmPosMA*(1-alpha) + plusDM
+			state.DmNegMA = state.DmNegMA*(1-alpha) + minusDM
+			state.TRMA = state.TRMA*(1-alpha) + tr
 		}
-		if state.Num <= period {
-			return res.Append([]float64{math.NaN(), math.NaN()})
-		}
-	} else {
-		state.DmPosMA = state.DmPosMA*(1-alpha) + plusDM
-		state.DmNegMA = state.DmNegMA*(1-alpha) + minusDM
-		state.TRMA = state.TRMA*(1-alpha) + tr
+		res.Append([]float64{state.DmPosMA, state.DmNegMA})
 	}
-	return res.Append([]float64{state.DmPosMA, state.DmNegMA})
+	return res, res.Cols[0]
 }
 
 /*
@@ -914,32 +916,32 @@ func ROC(obj *Series, period int) *Series {
 }
 
 // HeikinAshi return [open,high,low,close]
-func HeikinAshi(e *BarEnv) *Series {
+func HeikinAshi(e *BarEnv) (*Series, *Series, *Series, *Series) {
 	res := e.Close.To("_heikin", 0)
-	if res.Cached() {
-		return res
+	if !res.Cached() {
+		ho := e.Open.To("_hka", 0)
+		hh := e.High.To("_hka", 0)
+		hl := e.Low.To("_hka", 0)
+		hc := e.Close.To("_hka", 0)
+
+		o, h, l, c := e.Open.Get(0), e.High.Get(0), e.Low.Get(0), e.Close.Get(0)
+
+		po := ho.Get(0)
+		if math.IsNaN(po) {
+			ho.Append((o + c) / 2)
+		} else {
+			ho.Append((po + hc.Get(0)) / 2)
+		}
+		hcVal := (o + h + l + c) / 4
+		hc.Append(hcVal)
+		hoVal := ho.Get(0)
+		hh.Append(max(h, hoVal, hcVal))
+		hl.Append(min(l, hoVal, hcVal))
+
+		res.Append([]*Series{ho, hh, hl, hc})
 	}
 
-	ho := e.Open.To("_hka", 0)
-	hh := e.High.To("_hka", 0)
-	hl := e.Low.To("_hka", 0)
-	hc := e.Close.To("_hka", 0)
-
-	o, h, l, c := e.Open.Get(0), e.High.Get(0), e.Low.Get(0), e.Close.Get(0)
-
-	po := ho.Get(0)
-	if math.IsNaN(po) {
-		ho.Append((o + c) / 2)
-	} else {
-		ho.Append((po + hc.Get(0)) / 2)
-	}
-	hcVal := (o + h + l + c) / 4
-	hc.Append(hcVal)
-	hoVal := ho.Get(0)
-	hh.Append(max(h, hoVal, hcVal))
-	hl.Append(min(l, hoVal, hcVal))
-
-	return res.Append([]*Series{ho, hh, hl, hc})
+	return res, res.Cols[0], res.Cols[1], res.Cols[2]
 }
 
 type tnrState struct {
@@ -1194,16 +1196,16 @@ rsiLen: 14, stochLen: 14, maK: 3, maD: 3
 
 return [fastK, fastD]
 */
-func StochRSI(obj *Series, rsiLen int, stochLen int, maK int, maD int) *Series {
+func StochRSI(obj *Series, rsiLen int, stochLen int, maK int, maD int) (*Series, *Series) {
 	res := obj.To("_stoch_rsi", rsiLen*100000+stochLen*1000+maK*10+maD)
-	if res.Cached() {
-		return res
+	if !res.Cached() {
+		rsi := RSI(obj, rsiLen)
+		stochCol := Stoch(rsi, rsi, rsi, stochLen)
+		smoothK := SMA(stochCol, maK)
+		smoothD := SMA(smoothK, maD)
+		res.Append([]float64{smoothK.Get(0), smoothD.Get(0)})
 	}
-	rsi := RSI(obj, rsiLen)
-	stochCol := Stoch(rsi, rsi, rsi, stochLen)
-	smoothK := SMA(stochCol, maK)
-	smoothD := SMA(smoothK, maD).Get(0)
-	return res.Append([]float64{smoothK.Get(0), smoothD})
+	return res, res.Cols[0]
 }
 
 type mfiState struct {
@@ -1533,8 +1535,8 @@ maLen: 100, stiffLen: 60, stiffMa: 3
 func Stiffness(obj *Series, maLen, stiffLen, stiffMa int) *Series {
 	bound := obj.To("_sti_bound", maLen)
 	if !bound.Cached() {
-		stdDev := StdDev(obj, maLen).Cols[0].Get(0)
-		bound.Append(SMA(obj, maLen).Get(0) - stdDev*0.2)
+		stdDev, _ := StdDev(obj, maLen)
+		bound.Append(SMA(obj, maLen).Get(0) - stdDev.Get(0)*0.2)
 	}
 	above := bound.To("_raw_gt", stiffLen)
 	if !above.Cached() {

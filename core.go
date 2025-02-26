@@ -98,7 +98,10 @@ func (s *Series) Append(obj interface{}) *Series {
 	} else if val, ok := obj.(int); ok {
 		s.Data = append(s.Data, float64(val))
 	} else if arr, ok := obj.([]float64); ok {
-		for i, v := range arr {
+		if len(arr) > 0 {
+			s.Data = append(s.Data, arr[0])
+		}
+		for i, v := range arr[1:] {
 			if i >= len(s.Cols) {
 				col := s.To("_", i)
 				s.Cols = append(s.Cols, col)
@@ -109,7 +112,12 @@ func (s *Series) Append(obj interface{}) *Series {
 			}
 		}
 	} else if cols, ok := obj.([]*Series); ok {
-		s.Cols = cols
+		if len(cols) > 0 {
+			s.Data = append(s.Data, cols[0].Get(0))
+			if len(cols) > 1 {
+				s.Cols = cols[1:]
+			}
+		}
 	} else {
 		fmt.Printf("invalid val for Series.Append: %t", obj)
 		panic(ErrInvalidSeriesVal)
@@ -122,9 +130,6 @@ func (s *Series) Cached() bool {
 }
 
 func (s *Series) Get(i int) float64 {
-	if len(s.Cols) > 0 {
-		panic(fmt.Errorf("get val on combined Series"))
-	}
 	allLen := len(s.Data)
 	if i < 0 || i >= allLen {
 		return math.NaN()
@@ -152,9 +157,6 @@ func (s *Series) Range(start, stop int) []float64 {
 }
 
 func (s *Series) Add(obj interface{}) *Series {
-	if len(s.Cols) > 0 {
-		panic(ErrGetDataOfMerged)
-	}
 	res, val := s.objVal("_add", obj)
 	if res.Cached() {
 		return res
@@ -163,9 +165,6 @@ func (s *Series) Add(obj interface{}) *Series {
 }
 
 func (s *Series) Sub(obj interface{}) *Series {
-	if len(s.Cols) > 0 {
-		panic(ErrGetDataOfMerged)
-	}
 	res, val := s.objVal("_sub", obj)
 	if res.Cached() {
 		return res
@@ -174,9 +173,6 @@ func (s *Series) Sub(obj interface{}) *Series {
 }
 
 func (s *Series) Mul(obj interface{}) *Series {
-	if len(s.Cols) > 0 {
-		panic(ErrGetDataOfMerged)
-	}
 	res, val := s.objVal("_mul", obj)
 	if res.Cached() {
 		return res
@@ -185,9 +181,6 @@ func (s *Series) Mul(obj interface{}) *Series {
 }
 
 func (s *Series) Min(obj interface{}) *Series {
-	if len(s.Cols) > 0 {
-		panic(ErrGetDataOfMerged)
-	}
 	res, val := s.objVal("_min", obj)
 	if res.Cached() {
 		return res
@@ -196,9 +189,6 @@ func (s *Series) Min(obj interface{}) *Series {
 }
 
 func (s *Series) Max(obj interface{}) *Series {
-	if len(s.Cols) > 0 {
-		panic(ErrGetDataOfMerged)
-	}
 	res, val := s.objVal("_max", obj)
 	if res.Cached() {
 		return res
@@ -207,9 +197,6 @@ func (s *Series) Max(obj interface{}) *Series {
 }
 
 func (s *Series) Abs() *Series {
-	if len(s.Cols) > 0 {
-		panic(ErrGetDataOfMerged)
-	}
 	res := s.To("_abs", 0)
 	if res.Cached() {
 		return res
