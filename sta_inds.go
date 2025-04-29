@@ -637,14 +637,13 @@ func Aroon(high *Series, low *Series, period int) (*Series, *Series, *Series) {
 }
 
 /*
-	StdDev Standard Deviation 标准差和均值
+	StdDev Standard Deviation 标准差
 
 suggest period: 20
-
-return [stddev，sumVal]
 */
-func StdDev(obj *Series, period int) (*Series, *Series) {
-	return StdDevBy(obj, period, 0)
+func StdDev(obj *Series, period int) *Series {
+	sd, _ := StdDevBy(obj, period, 0)
+	return sd
 }
 
 /*
@@ -694,7 +693,7 @@ return [upper, mid, lower]
 func BBANDS(obj *Series, period int, stdUp, stdDn float64) (*Series, *Series, *Series) {
 	res := obj.To("_bb", period*10000+int(stdUp*1000)+int(stdDn*10))
 	if !res.Cached() {
-		devCol, meanCol := StdDev(obj, period)
+		devCol, meanCol := StdDevBy(obj, period, 0)
 		dev, mean := devCol.Get(0), meanCol.Get(0)
 		if math.IsNaN(dev) {
 			res.Append([]float64{math.NaN(), math.NaN(), math.NaN()})
@@ -1535,7 +1534,7 @@ maLen: 100, stiffLen: 60, stiffMa: 3
 func Stiffness(obj *Series, maLen, stiffLen, stiffMa int) *Series {
 	bound := obj.To("_sti_bound", maLen)
 	if !bound.Cached() {
-		stdDev, _ := StdDev(obj, maLen)
+		stdDev := StdDev(obj, maLen)
 		bound.Append(SMA(obj, maLen).Get(0) - stdDev.Get(0)*0.2)
 	}
 	above := bound.To("_raw_gt", stiffLen)
