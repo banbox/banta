@@ -123,7 +123,7 @@ func TestCommon(t *testing.T) {
 			return aroon.Get(0)
 		}},
 		{"stdDev", stdDevArr, func() float64 {
-			stdDev, _ := StdDev(env.Close, 5)
+			stdDev := StdDev(env.Close, 5)
 			return stdDev.Get(0)
 		}},
 		{"BBands", bbandArr, func() float64 {

@@ -657,30 +657,37 @@ func StdDevBy(obj *Series, period int, ddof int) (*Series, *Series) {
 	res := obj.To("_sdev", period*10+ddof)
 	if !res.Cached() {
 		meanVal := SMA(obj, period).Get(0)
-		var more []float64
-		if res.More == nil {
-			more = make([]float64, 0, period)
-		} else {
-			more = res.More.([]float64)
-		}
-
-		more = append(more, obj.Get(0))
-		if len(more) < period {
-			res.More = more
+		arr := WrapFloatArr(res, period, obj.Get(0))
+		if len(arr) < period {
 			res.Append([]float64{math.NaN(), math.NaN()})
 		} else {
 			sumSqrt := 0.0
-			for _, x := range more {
+			for _, x := range arr {
 				sumSqrt += (x - meanVal) * (x - meanVal)
 			}
 			variance := sumSqrt / float64(period-ddof)
 			stdDevVal := math.Sqrt(variance)
-			res.More = more[1:]
-
 			res.Append([]float64{stdDevVal, meanVal})
 		}
 	}
 	return res, res.Cols[0]
+}
+
+func WrapFloatArr(res *Series, period int, inVal float64) []float64 {
+	var more []float64
+	if res.More == nil {
+		more = make([]float64, 0, period)
+	} else {
+		more = res.More.([]float64)
+	}
+
+	more = append(more, inVal)
+	if len(more) < period {
+		res.More = more
+	} else {
+		res.More = more[1:]
+	}
+	return more
 }
 
 /*
