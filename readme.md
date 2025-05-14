@@ -1,6 +1,8 @@
 # Ban Technical Analysis
 [中文文档](./readme.cn.md)  
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/banbox/banta)
+
 **banta** is an event-based technical analysis framework. It updates and caches indicators on each K-line, and the indicator calculation results are reused globally. It aims to provide a **high degree of freedom**, **high performance**, **simple and easy-to-use** indicator framework.
 
 ## Core Concept
