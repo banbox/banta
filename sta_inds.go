@@ -754,7 +754,7 @@ suggest period: 14
 return [maDX, plusDI, minusDI]
 */
 func ADX(high *Series, low *Series, close *Series, period int) *Series {
-	return ADXBy(high, low, close, period, 0)
+	return ADXBy(high, low, close, period, 0, 0)
 }
 
 /*
@@ -764,15 +764,19 @@ method=0 classic ADX
 method=1 TradingView "ADX and DI for v4"
 
 suggest period: 14
+smoothing: 0 to use period
 
 return [maDX, plusDI, minusDI]
 */
-func ADXBy(high *Series, low *Series, close *Series, period int, method int) *Series {
+func ADXBy(high *Series, low *Series, close *Series, period, smoothing, method int) *Series {
 	plusDI, minusDI := pluMinDIBy(high, low, close, period, method)
 
+	if smoothing == 0 {
+		smoothing = period
+	}
 	// 初始化相关的系列
-	dx := plusDI.To("_dx", period*10+method)
-	adx := plusDI.To("_adx", period*10+method)
+	dx := plusDI.To("_dx", smoothing*10+method)
+	adx := plusDI.To("_adx", smoothing*10+method)
 	if adx.Cached() {
 		return adx
 	}
@@ -788,9 +792,9 @@ func ADXBy(high *Series, low *Series, close *Series, period int, method int) *Se
 
 	var maDX float64
 	if method == 0 {
-		maDX = RMA(dx, period).Get(0)
+		maDX = RMA(dx, smoothing).Get(0)
 	} else {
-		maDX = SMA(dx, period).Get(0)
+		maDX = SMA(dx, smoothing).Get(0)
 	}
 	adx.Append(maDX)
 	return adx

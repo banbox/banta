@@ -145,7 +145,7 @@ func TestCommon(t *testing.T) {
 			return plusDm.Get(0)
 		}},
 		{"ADXBy", adxByArr, func() float64 {
-			return ADXBy(env.High, env.Low, env.Close, 9, 1).Get(0)
+			return ADXBy(env.High, env.Low, env.Close, 9, 0, 1).Get(0)
 		}},
 		{"ROC", rocArr, func() float64 {
 			return ROC(env.Close, 9).Get(0)
