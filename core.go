@@ -180,6 +180,14 @@ func (s *Series) Mul(obj interface{}) *Series {
 	return res.Append(s.Get(0) * val)
 }
 
+func (s *Series) Div(obj interface{}) *Series {
+	res, val := s.objVal("_div", obj)
+	if res.Cached() {
+		return res
+	}
+	return res.Append(s.Get(0) / val)
+}
+
 func (s *Series) Min(obj interface{}) *Series {
 	res, val := s.objVal("_min", obj)
 	if res.Cached() {
