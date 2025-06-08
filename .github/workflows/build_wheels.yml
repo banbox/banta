@@ -48,7 +48,13 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse _out
         env:
+          # On Linux, cibuildwheel builds in a Docker container. We need to install Go there.
+          # The linux-specific command overrides the generic one, so we repeat `pip install pybindgen`.
+          CIBW_BEFORE_BUILD_LINUX: "curl -sL https://go.dev/dl/go1.23.0.linux-amd64.tar.gz | tar -C /usr/local -xzf - && pip install pybindgen"
+          # Add Go to the PATH in the container.
+          CIBW_ENVIRONMENT_LINUX: 'PATH=/usr/local/go/bin:$PATH'
           # Install pybindgen before building each wheel, as it's required by our build script.
+          # This is used by Windows and macOS builds. For Linux, this is overridden by the _LINUX variant.
           CIBW_BEFORE_BUILD: "pip install pybindgen"
           # Skip testing for now. You can configure this later.
           CIBW_TEST_COMMAND: ""
