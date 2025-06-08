@@ -31,19 +31,19 @@ jobs:
           go install github.com/go-python/gopy@latest
           go install golang.org/x/tools/cmd/goimports@latest
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: python -m pip install pybindgen cibuildwheel
+
       - name: Generate Python package source using gopy
         run: gopy pkg -output=_out -vm=python3 -name=banbta -version=0.3.0 github.com/banbox/banta/python/ta github.com/banbox/banta/python/tav
 
       - name: Replace setup.py with custom version
         run: cp python/setup_custom.py _out/setup.py
-
-      - name: Set up Python for cibuildwheel
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install cibuildwheel and other dependencies
-        run: python -m pip install cibuildwheel
 
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse _out
