@@ -10,8 +10,8 @@ go install github.com/go-python/gopy@latest
 
 # 编译
 ```shell
-gopy pkg -output=_out -vm=python3
-  -name=banta \
+gopy pkg -output=_out -vm=python3 \
+  -name=banbta \
   -version=0.3.0 \
   -author="banbot" \
   -email="banbot@163.com" \
@@ -29,10 +29,10 @@ make install
 # 发布
 ```shell
 # 构建分发包  
-python3 setup.py sdist bdist_wheel  
+python3 setup.py sdist bdist_wheel
   
 # 上传到PyPI  
-python3 -m pip install twine  
+python3 -m pip install twine
 twine upload dist/*
 ```
 
