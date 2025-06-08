@@ -45,6 +45,11 @@ jobs:
       - name: Replace setup.py with custom version
         run: cp python/setup_custom.py _out/setup.py
 
+      - name: Copy Go source files for build
+        run: |
+          cp -r python/ta _out/
+          cp -r python/tav _out/
+
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse _out
         env:
