@@ -26,8 +26,10 @@ jobs:
         with:
           go-version: '1.20'
 
-      - name: Install gopy
-        run: go install github.com/go-python/gopy@latest
+      - name: Install Go dependencies
+        run: |
+          go install github.com/go-python/gopy@latest
+          go install golang.org/x/tools/cmd/goimports@latest
 
       - name: Generate Python package source using gopy
         run: gopy pkg -output=_out -vm=python3 -name=banbta -version=0.3.0 github.com/banbox/banta/python/ta github.com/banbox/banta/python/tav
