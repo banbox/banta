@@ -38,7 +38,7 @@ func HLC3(h, l, c *Series) *Series {
 
 type sumState struct {
 	sumVal float64
-	addLen int
+	arr    []float64
 }
 
 func Sum(obj *Series, period int) *Series {
@@ -52,29 +52,19 @@ func Sum(obj *Series, period int) *Series {
 		res.More = sta
 	}
 	curVal := obj.Get(0)
-	if math.IsNaN(curVal) {
-		// 输入值无效，重置，重新开始累计
-		curVal = 0
-		sta.sumVal = 0
-		sta.addLen = 0
-	} else {
-		if sta.addLen < period {
-			sta.sumVal += curVal
-			sta.addLen += 1
-		} else {
-			oldVal := obj.Get(period)
-			if math.IsNaN(oldVal) {
-				sta.sumVal = 0
-				sta.addLen = 0
-			} else {
-				sta.sumVal += curVal - oldVal
-			}
+	if !math.IsNaN(curVal) {
+		// 跳过nan
+		sta.sumVal += curVal
+		sta.arr = append(sta.arr, curVal)
+		if len(sta.arr) > period {
+			sta.sumVal -= sta.arr[0]
+			sta.arr = sta.arr[1:]
+		}
+		if len(sta.arr) >= period {
+			return res.Append(sta.sumVal)
 		}
 	}
-	if sta.addLen < period {
-		return res.Append(math.NaN())
-	}
-	return res.Append(sta.sumVal)
+	return res.Append(math.NaN())
 }
 
 func SMA(obj *Series, period int) *Series {
@@ -92,7 +82,8 @@ func SMA(obj *Series, period int) *Series {
 type moreVWMA struct {
 	sumCost float64
 	sumWei  float64
-	len     int
+	costs   []float64
+	volumes []float64
 }
 
 /*
@@ -110,22 +101,25 @@ func VWMA(price *Series, vol *Series, period int) *Series {
 	volVal := vol.Get(0)
 	cost := price.Get(0) * volVal
 	more, _ := res.More.(*moreVWMA)
-	if more == nil || math.IsNaN(cost) {
+	if more == nil {
 		more = &moreVWMA{}
 		res.More = more
 	}
-	if more.len >= period {
-		oldVol := vol.Get(period)
-		oldCost := price.Get(period) * oldVol
-		more.sumCost -= oldCost
-		more.sumWei -= oldVol
-	}
-	if !math.IsNaN(cost) {
+	if math.IsNaN(cost) {
+		return res.Append(math.NaN())
+	} else {
 		more.sumCost += cost
 		more.sumWei += volVal
-		more.len += 1
+		more.volumes = append(more.volumes, volVal)
+		more.costs = append(more.costs, cost)
 	}
-	if more.len < period {
+	if len(more.volumes) > period {
+		more.sumCost -= more.costs[0]
+		more.sumWei -= more.volumes[0]
+		more.costs = more.costs[1:]
+		more.volumes = more.volumes[1:]
+	}
+	if len(more.volumes) < period {
 		return res.Append(math.NaN())
 	}
 	return res.Append(more.sumCost / more.sumWei)
@@ -140,23 +134,34 @@ func ewma(obj, res *Series, period int, alpha float64, initType int, initVal flo
 	if res.Cached() {
 		return res
 	}
+	prevRes, ok := res.More.(float64)
+	if !ok {
+		prevRes = math.NaN()
+		res.More = prevRes
+	}
 	inVal := obj.Get(0)
 	var resVal float64
 	if math.IsNaN(inVal) {
 		resVal = inVal
-	} else if res.Len() == 0 || math.IsNaN(res.Get(0)) {
-		if !math.IsNaN(initVal) {
-			// 使用给定值作为计算第一个值的前置值
-			resVal = alpha*inVal + (1-alpha)*initVal
-		} else if initType == 0 {
-			// 使用 SMA 作为第一个 EMA 值
-			resVal = SMA(obj, period).Get(0)
-		} else {
-			// 第一个有效值作为第一个 EMA 值
-			resVal = inVal
-		}
 	} else {
-		resVal = alpha*inVal + (1-alpha)*res.Get(0)
+		if math.IsNaN(prevRes) {
+			if !math.IsNaN(initVal) {
+				// 使用给定值作为计算第一个值的前置值
+				resVal = alpha*inVal + (1-alpha)*initVal
+			} else if initType == 0 {
+				// 使用 SMA 作为第一个 EMA 值
+				resVal = SMA(obj, period).Get(0)
+			} else {
+				// 第一个有效值作为第一个 EMA 值
+				resVal = inVal
+			}
+		} else {
+			resVal = alpha*inVal + (1-alpha)*prevRes
+		}
+		// 如果当前计算结果有效，则更新状态
+		if !math.IsNaN(resVal) {
+			res.More = resVal
+		}
 	}
 	return res.Append(resVal)
 }
@@ -223,6 +228,12 @@ func RMABy(obj *Series, period int, initType int, initVal float64) *Series {
 	return ewma(obj, res, period, alpha, initType, initVal)
 }
 
+type wmaSta struct {
+	arr    []float64
+	allSum float64
+	weiSum float64
+}
+
 /*
 WMA Weighted Moving Average.
 
@@ -236,24 +247,28 @@ func WMA(obj *Series, period int) *Series {
 		return res
 	}
 	val := obj.Get(0)
-	arr, _ := res.More.([]float64)
 	if math.IsNaN(val) {
-		arr = nil
-	} else if len(arr) >= period {
-		arr = append(arr[1:], val)
-	} else {
-		arr = append(arr, val)
-	}
-	res.More = arr
-	if len(arr) < period {
 		return res.Append(math.NaN())
 	}
-	var sumVal = float64(0)
-	var sumWei = float64(period) * float64(period+1) * 0.5
-	for i := 0; i < period; i++ {
-		sumVal += float64(i+1) * arr[i]
+	more, _ := res.More.(*wmaSta)
+	if more == nil {
+		more = &wmaSta{}
+		res.More = more
 	}
-	return res.Append(sumVal / sumWei)
+	more.arr = append(more.arr, val)
+	if len(more.arr) > period {
+		more.allSum -= more.weiSum
+		more.weiSum -= more.arr[0]
+		more.arr = more.arr[1:]
+	}
+	arrNum := len(more.arr)
+	more.weiSum += val
+	more.allSum += val * float64(arrNum)
+	if arrNum < period {
+		return res.Append(math.NaN())
+	}
+	sumWei := float64(period) * float64(period+1) * 0.5
+	return res.Append(more.allSum / sumWei)
 }
 
 /*
@@ -278,13 +293,20 @@ func TR(high *Series, low *Series, close *Series) *Series {
 	if res.Cached() {
 		return res
 	}
-	if high.Len() < 2 {
-		return res.Append(math.NaN())
-	} else {
-		chigh, clow, pclose := high.Get(0), low.Get(0), close.Get(1)
-		resVal := max(chigh-clow, math.Abs(chigh-pclose), math.Abs(clow-pclose))
-		return res.Append(resVal)
+	pclose, ok := res.More.(float64)
+	if !ok {
+		pclose = math.NaN()
 	}
+	resVal := math.NaN()
+	if high.Len() >= 2 {
+		chigh, clow := high.Get(0), low.Get(0)
+		resVal = max(chigh-clow, math.Abs(chigh-pclose), math.Abs(clow-pclose))
+	}
+	curClose := close.Get(0)
+	if !math.IsNaN(curClose) {
+		res.More = curClose
+	}
+	return res.Append(resVal)
 }
 
 /*
@@ -327,28 +349,39 @@ func rsiBy(obj *Series, period int, subVal float64) *Series {
 	if res.Cached() {
 		return res
 	}
-	var more []float64
-	if res.More == nil {
-		more = []float64{math.NaN(), 0, 0}
-		res.More = more
-	} else {
-		more = res.More.([]float64)
-	}
-
 	curVal := obj.Get(0)
-	valDelta := curVal - more[0]
-	more[0] = curVal
-	if res.Len() == 0 || math.IsNaN(more[0]) {
+	// 如果当前值为NaN，则跳过并返回NaN
+	if math.IsNaN(curVal) {
 		return res.Append(math.NaN())
 	}
 
+	var more []float64
+	if m, ok := res.More.([]float64); ok && len(m) == 4 {
+		more = m
+	} else {
+		// 状态: [0:prevVal, 1:avgGain, 2:avgLoss, 3:validCount]
+		more = []float64{math.NaN(), 0, 0, 0}
+		res.More = more
+	}
+
+	prevVal := more[0]
+	valDelta := curVal - prevVal
+	more[0] = curVal
+	if math.IsNaN(prevVal) {
+		return res.Append(math.NaN())
+	}
+	// 从这里开始，我们有一个有效的delta可以计算
+	validCount := more[3]
+	validCount++
+	more[3] = validCount
+
 	var gainDelta, lossDelta float64
 	if valDelta >= 0 {
-		gainDelta, lossDelta = valDelta, 0
+		gainDelta = valDelta
 	} else {
-		gainDelta, lossDelta = 0, -valDelta
+		lossDelta = -valDelta
 	}
-	if res.Len() > period {
+	if validCount > float64(period) {
 		more[1] = (more[1]*float64(period-1) + gainDelta) / float64(period)
 		more[2] = (more[2]*float64(period-1) + lossDelta) / float64(period)
 	} else {
@@ -357,7 +390,7 @@ func rsiBy(obj *Series, period int, subVal float64) *Series {
 	}
 
 	var resVal float64
-	if res.Len() >= period {
+	if validCount >= float64(period) {
 		resVal = more[1]*100/(more[1]+more[2]) - subVal
 	} else {
 		resVal = math.NaN()
@@ -437,7 +470,7 @@ func UpDown(obj *Series, vtype int) *Series {
 	}
 	old := res.Get(0)
 	sub := obj.Get(0) - obj.Get(1)
-	var resVal float64
+	var resVal = math.NaN()
 	if sub == 0 {
 		resVal = 0
 	} else if sub > 0 {
@@ -446,12 +479,14 @@ func UpDown(obj *Series, vtype int) *Series {
 		} else {
 			resVal = 1
 		}
-	} else {
+	} else if sub < 0 {
 		if old < 0 && vtype == 0 {
 			resVal = old - 1
 		} else {
 			resVal = -1
 		}
+	} else if !math.IsNaN(obj.Get(0)) {
+		resVal = 0
 	}
 	return res.Append(resVal)
 }
@@ -466,14 +501,17 @@ func PercentRank(obj *Series, period int) *Series {
 	if res.Cached() {
 		return res
 	}
-	vals := obj.Range(0, period)
+	inVal := obj.Get(0)
+	if math.IsNaN(inVal) {
+		return res.Append(math.NaN())
+	}
+	vals := WrapFloatArr(res, period, inVal)
 	if len(vals) < period {
 		return res.Append(math.NaN())
 	}
 	lowNum := float64(0)
-	curV := vals[0]
-	for i := 1; i < period; i++ {
-		if vals[i] <= curV {
+	for i := 0; i < period-1; i++ {
+		if vals[i] <= inVal {
 			lowNum += 1
 		}
 	}
@@ -485,11 +523,16 @@ func Highest(obj *Series, period int) *Series {
 	if res.Cached() {
 		return res
 	}
-	if obj.Len() < period {
+	inVal := obj.Get(0)
+	if math.IsNaN(inVal) {
 		return res.Append(math.NaN())
 	}
-	resVal := slices.Max(obj.Range(0, period))
-	return res.Append(resVal)
+	// 获取周期内的数据
+	values := WrapFloatArr(res, period, inVal)
+	if len(values) < period {
+		return res.Append(math.NaN())
+	}
+	return res.Append(slices.Max(values))
 }
 
 func HighestBar(obj *Series, period int) *Series {
@@ -497,15 +540,21 @@ func HighestBar(obj *Series, period int) *Series {
 	if res.Cached() {
 		return res
 	}
-	if obj.Len() < period {
+	if math.IsNaN(obj.Get(0)) {
 		return res.Append(math.NaN())
 	}
-	data := obj.Range(0, period)
-	maxIdx, maxVal := -1, 0.0
-	for i, val := range data {
-		if maxIdx < 0 || val > maxVal {
-			maxVal = val
-			maxIdx = i
+	values, ids := obj.RangeValid(0, period)
+	if len(values) < period {
+		return res.Append(math.NaN())
+	}
+	maxIdx, maxVal := -1, math.NaN()
+
+	// 遍历以寻找非 NaN 的最大值
+	for i, v := range values {
+		// 如果 maxVal 是 NaN (说明这是第一个有效值) 或当前值更大，则更新
+		if maxIdx < 0 || v > maxVal {
+			maxVal = v
+			maxIdx = ids[i]
 		}
 	}
 	return res.Append(maxIdx)
@@ -516,11 +565,16 @@ func Lowest(obj *Series, period int) *Series {
 	if res.Cached() {
 		return res
 	}
-	if obj.Len() < period {
+	inVal := obj.Get(0)
+	if math.IsNaN(inVal) {
 		return res.Append(math.NaN())
 	}
-	resVal := slices.Min(obj.Range(0, period))
-	return res.Append(resVal)
+	// 获取周期内的数据
+	values := WrapFloatArr(res, period, inVal)
+	if len(values) < period {
+		return res.Append(math.NaN())
+	}
+	return res.Append(slices.Min(values))
 }
 
 func LowestBar(obj *Series, period int) *Series {
@@ -528,15 +582,21 @@ func LowestBar(obj *Series, period int) *Series {
 	if res.Cached() {
 		return res
 	}
-	if obj.Len() < period {
+	if math.IsNaN(obj.Get(0)) {
 		return res.Append(math.NaN())
 	}
-	data := obj.Range(0, period)
-	minIdx, minVal := -1, 0.0
-	for i, val := range data {
-		if minIdx < 0 || val < minVal {
-			minVal = val
-			minIdx = i
+	values, ids := obj.RangeValid(0, period)
+	if len(values) < period {
+		return res.Append(math.NaN())
+	}
+	minIdx, minVal := -1, math.NaN()
+
+	// 遍历以寻找非 NaN 的最大值
+	for i, v := range values {
+		// 如果 maxVal 是 NaN (说明这是第一个有效值) 或当前值更大，则更新
+		if minIdx < 0 || v < minVal {
+			minVal = v
+			minIdx = ids[i]
 		}
 	}
 	return res.Append(minIdx)
@@ -657,7 +717,12 @@ func StdDevBy(obj *Series, period int, ddof int) (*Series, *Series) {
 	res := obj.To("_sdev", period*10+ddof)
 	if !res.Cached() {
 		meanVal := SMA(obj, period).Get(0)
-		arr := WrapFloatArr(res, period, obj.Get(0))
+		inVal := obj.Get(0)
+		if math.IsNaN(inVal) {
+			res.Append([]float64{math.NaN(), math.NaN()})
+			return res, res.Cols[0]
+		}
+		arr := WrapFloatArr(res, period, inVal)
 		if len(arr) < period {
 			res.Append([]float64{math.NaN(), math.NaN()})
 		} else {
@@ -728,10 +793,15 @@ func TD(obj *Series) *Series {
 	if res.Cached() {
 		return res
 	}
-	sub4 := obj.Get(0) - obj.Get(4)
-	if res.Len() == 0 || math.IsNaN(sub4) {
+	inVal := obj.Get(0)
+	if math.IsNaN(inVal) {
 		return res.Append(math.NaN())
 	}
+	prevs := WrapFloatArr(res, 5, inVal)
+	if len(prevs) < 5 {
+		return res.Append(math.NaN())
+	}
+	sub4 := inVal - prevs[0]
 	prevNum := res.Get(0)
 	step := 1
 	if equalNearly(sub4, 0) {
@@ -857,56 +927,53 @@ return [Plus DM, Minus DM]
 func pluMinDMBy(high *Series, low *Series, close *Series, period, method int) (*Series, *Series) {
 	// 初始化相关的系列
 	res := close.To("_PluMinDM", period*10+method)
-	if !res.Cached() {
-		// 计算 DMH 和 DML
-		dmhVal := high.Get(0) - high.Get(1)
-		dmlVal := low.Get(1) - low.Get(0)
-		plusDM, minusDM := 0.0, 0.0
-		if dmhVal > max(dmlVal, 0) {
-			plusDM = dmhVal
-		} else if dmlVal > max(dmhVal, 0) {
-			minusDM = dmlVal
-		}
-
-		// 计算 TR
-		tr := TR(high, low, close).Get(0)
-		state, _ := res.More.(*dmState)
-		if state == nil {
-			state = &dmState{}
-			res.More = state
-		}
-		state.Num += 1
-		if math.IsNaN(tr) && math.IsNaN(close.Get(0)) {
-			state.Num = 1
-		}
-
-		// calc Wilder's smoothing of DmH/DmL/TR
-		alpha := 1 / float64(period)
-		initLen := period
-		if method == 1 {
-			initLen = period + 1
-		}
-		if state.Num <= initLen {
-			if math.IsNaN(tr) {
-				state.DmPosMA = 0
-				state.DmNegMA = 0
-				state.TRMA = 0
-			} else {
-				state.DmPosMA += plusDM
-				state.DmNegMA += minusDM
-				state.TRMA += tr
-			}
-			if state.Num <= period {
-				res.Append([]float64{math.NaN(), math.NaN()})
-				return res, res.Cols[0]
-			}
-		} else {
-			state.DmPosMA = state.DmPosMA*(1-alpha) + plusDM
-			state.DmNegMA = state.DmNegMA*(1-alpha) + minusDM
-			state.TRMA = state.TRMA*(1-alpha) + tr
-		}
-		res.Append([]float64{state.DmPosMA, state.DmNegMA})
+	if res.Cached() {
+		return res, res.Cols[0]
 	}
+	// 计算 DMH 和 DML
+	dmhVal := high.Get(0) - high.Get(1)
+	dmlVal := low.Get(1) - low.Get(0)
+	plusDM, minusDM := 0.0, 0.0
+	if dmhVal > max(dmlVal, 0) {
+		plusDM = dmhVal
+	} else if dmlVal > max(dmhVal, 0) {
+		minusDM = dmlVal
+	}
+
+	// 计算 TR
+	tr := TR(high, low, close).Get(0)
+	state, _ := res.More.(*dmState)
+	if state == nil {
+		state = &dmState{}
+		res.More = state
+	}
+	if math.IsNaN(tr) {
+		res.Append([]float64{math.NaN(), math.NaN()})
+		return res, res.Cols[0]
+	} else {
+		state.Num += 1
+	}
+
+	// calc Wilder's smoothing of DmH/DmL/TR
+	alpha := 1 / float64(period)
+	initLen := period
+	if method == 1 {
+		initLen = period + 1
+	}
+	if state.Num <= initLen-1 {
+		state.DmPosMA += plusDM
+		state.DmNegMA += minusDM
+		state.TRMA += tr
+		if state.Num <= period-1 {
+			res.Append([]float64{math.NaN(), math.NaN()})
+			return res, res.Cols[0]
+		}
+	} else {
+		state.DmPosMA = state.DmPosMA*(1-alpha) + plusDM
+		state.DmNegMA = state.DmNegMA*(1-alpha) + minusDM
+		state.TRMA = state.TRMA*(1-alpha) + tr
+	}
+	res.Append([]float64{state.DmPosMA, state.DmNegMA})
 	return res, res.Cols[0]
 }
 
@@ -920,9 +987,28 @@ func ROC(obj *Series, period int) *Series {
 	if res.Cached() {
 		return res
 	}
+	prevs, _ := res.More.([]float64)
 	curVal := obj.Get(0)
-	preVal := obj.Get(period)
-	return res.Append((curVal - preVal) / preVal * 100)
+	if math.IsNaN(curVal) {
+		return res.Append(math.NaN())
+	}
+	prevs = append(prevs, curVal)
+	if len(prevs) > period+1 {
+		prevs = prevs[1:]
+		res.More = prevs
+	} else if len(prevs) <= period {
+		res.More = prevs
+		return res.Append(math.NaN())
+	}
+	res.More = prevs
+	preVal := prevs[0]
+	var rocVal float64
+	if preVal != 0 {
+		rocVal = (curVal - preVal) / preVal * 100
+	} else {
+		rocVal = math.NaN() // 避免除以零
+	}
+	return res.Append(rocVal)
 }
 
 // HeikinAshi return [open,high,low,close]
@@ -957,6 +1043,8 @@ func HeikinAshi(e *BarEnv) (*Series, *Series, *Series, *Series) {
 type tnrState struct {
 	arr    []float64
 	sumVal float64
+	prevIn float64
+	arrIn  []float64
 }
 
 /*
@@ -969,16 +1057,22 @@ func ER(obj *Series, period int) *Series {
 	if res.Cached() {
 		return res
 	}
-	curVal := math.Abs(obj.Get(0) - obj.Get(1))
 	sta, _ := res.More.(*tnrState)
 	if sta == nil {
-		sta = &tnrState{}
+		sta = &tnrState{
+			prevIn: math.NaN(),
+		}
 		res.More = sta
+	}
+	inVal := obj.Get(0)
+	curVal := math.Abs(inVal - sta.prevIn)
+	if !math.IsNaN(inVal) {
+		sta.prevIn = inVal
+		sta.arrIn = append(sta.arrIn, inVal)
 	}
 	var resVal = math.NaN()
 	if math.IsNaN(curVal) {
-		sta.arr = make([]float64, 0)
-		sta.sumVal = 0
+		return res.Append(resVal)
 	} else {
 		sta.sumVal += curVal
 		if len(sta.arr) < period {
@@ -986,8 +1080,12 @@ func ER(obj *Series, period int) *Series {
 		} else {
 			sta.sumVal -= sta.arr[0]
 			sta.arr = append(sta.arr[1:], curVal)
+		}
+		if len(sta.arrIn) > period {
+			periodVal := sta.arrIn[0]
+			sta.arrIn = sta.arrIn[1:]
 			if sta.sumVal > 0 {
-				diffVal := math.Abs(obj.Get(0) - obj.Get(period))
+				diffVal := math.Abs(inVal - periodVal)
 				resVal = diffVal / sta.sumVal
 			}
 		}
@@ -1003,10 +1101,20 @@ func AvgDev(obj *Series, period int) *Series {
 	}
 
 	sma := SMA(obj, period)
+	smaVal := sma.Get(0)
+	inVal := obj.Get(0)
+	if math.IsNaN(smaVal) || math.IsNaN(inVal) {
+		return res.Append(math.NaN())
+	}
 	sumDev := 0.0
-
-	for i := 0; i < period; i++ {
-		sumDev += math.Abs(obj.Get(i) - sma.Get(0))
+	validNum := 0
+	for i := 0; validNum < period; i++ {
+		val := obj.Get(i)
+		if math.IsNaN(val) {
+			continue
+		}
+		validNum++
+		sumDev += math.Abs(val - smaVal)
 	}
 
 	avgDev := sumDev / float64(period)
@@ -1082,11 +1190,7 @@ func CMF(env *BarEnv, period int) *Series {
 	}
 
 	var resVal = math.NaN()
-	if math.IsNaN(mfVolume) || math.IsNaN(volume) || volume == 0 {
-		sta.mfSum = make([]float64, 0)
-		sta.volSum = make([]float64, 0)
-		sta.sumMfVal = 0
-		sta.sumVol = 0
+	if math.IsNaN(mfVolume) || math.IsNaN(volume) || volume <= 0 {
 	} else {
 		// Sum the Money Flow Volumes and Volumes over the period
 		sta.sumMfVal += mfVolume
@@ -1095,6 +1199,9 @@ func CMF(env *BarEnv, period int) *Series {
 		if len(sta.mfSum) < period {
 			sta.mfSum = append(sta.mfSum, mfVolume)
 			sta.volSum = append(sta.volSum, volume)
+			if len(sta.mfSum) == period {
+				resVal = sta.sumMfVal / sta.sumVol
+			}
 		} else {
 			sta.sumMfVal -= sta.mfSum[0]
 			sta.mfSum = append(sta.mfSum[1:], mfVolume)
@@ -1167,18 +1274,23 @@ func KAMABy(obj *Series, period int, fast, slow int) *Series {
 		return res
 	}
 
+	prevRes, ok := res.More.(float64)
+	if !ok {
+		prevRes = math.NaN()
+	}
 	effRatio := ER(obj, period).Get(0)
-	var resVal = res.Get(0)
 
+	resVal := math.NaN()
 	if !math.IsNaN(effRatio) {
 		fastV := 2 / float64(fast+1)
 		slowV := 2 / float64(slow+1)
 		alpha := math.Pow(effRatio*(fastV-slowV)+slowV, 2)
 		curVal := obj.Get(0)
-		if math.IsNaN(resVal) {
-			resVal = curVal
+		if math.IsNaN(prevRes) {
+			prevRes = obj.Get(1)
 		}
-		resVal = alpha*curVal + (1-alpha)*resVal
+		resVal = alpha*curVal + (1-alpha)*prevRes
+		res.More = resVal
 	}
 
 	return res.Append(resVal)
@@ -1196,7 +1308,11 @@ func WillR(e *BarEnv, period int) *Series {
 	}
 	lowVal := Lowest(e.Low, period).Get(0)
 	highVal := Highest(e.High, period).Get(0)
-	return res.Append((e.Close.Get(0) - highVal) / (highVal - lowVal) * 100)
+	rangeVal := highVal - lowVal
+	if rangeVal == 0 {
+		return res.Append(math.NaN())
+	}
+	return res.Append((e.Close.Get(0) - highVal) / rangeVal * 100)
 }
 
 /*
@@ -1223,6 +1339,7 @@ type mfiState struct {
 	negArr []float64
 	sumPos float64
 	sumNeg float64
+	prev   float64
 }
 
 /*
@@ -1239,17 +1356,24 @@ func MFI(e *BarEnv, period int) *Series {
 	}
 	sta, _ := res.More.(*mfiState)
 	if sta == nil {
-		sta = &mfiState{sumNeg: math.NaN(), sumPos: math.NaN()}
+		sta = &mfiState{sumNeg: math.NaN(), sumPos: math.NaN(), prev: math.NaN()}
 		res.More = sta
 	}
 	avgPrice := AvgPrice(e)
-	price0, price1 := avgPrice.Get(0), avgPrice.Get(1)
+	price0 := avgPrice.Get(0)
+	if math.IsNaN(price0) {
+		return res.Append(math.NaN())
+	}
 	moneyFlow := price0 * e.Volume.Get(0)
 	posFlow, negFlow := float64(0), float64(0)
-	if price0 > price1 {
+	if price0 > sta.prev {
 		posFlow = moneyFlow
-	} else if price0 < price1 {
+	} else if price0 < sta.prev {
 		negFlow = moneyFlow
+	}
+	sta.prev = price0
+	if math.IsNaN(moneyFlow) {
+		return res.Append(math.NaN())
 	}
 	var resVal = math.NaN()
 	if math.IsNaN(sta.sumPos) || math.IsNaN(sta.sumNeg) {
@@ -1260,14 +1384,15 @@ func MFI(e *BarEnv, period int) *Series {
 	} else {
 		sta.sumPos += posFlow
 		sta.sumNeg += negFlow
-		if len(sta.posArr) < period {
-			sta.posArr = append(sta.posArr, posFlow)
-			sta.negArr = append(sta.negArr, negFlow)
-		} else {
-			sta.sumPos -= sta.posArr[0]
-			sta.sumNeg -= sta.negArr[0]
-			sta.posArr = append(sta.posArr[1:], posFlow)
-			sta.negArr = append(sta.negArr[1:], negFlow)
+		sta.posArr = append(sta.posArr, posFlow)
+		sta.negArr = append(sta.negArr, negFlow)
+		if len(sta.posArr) >= period {
+			if len(sta.posArr) > period {
+				sta.sumPos -= sta.posArr[0]
+				sta.sumNeg -= sta.negArr[0]
+				sta.posArr = sta.posArr[1:]
+				sta.negArr = sta.negArr[1:]
+			}
 			if sta.sumNeg > 0 {
 				moneyFlowRatio := sta.sumPos / sta.sumNeg
 				resVal = 100 - (100 / (1 + moneyFlowRatio))
@@ -1290,7 +1415,19 @@ func RMI(obj *Series, period int, montLen int) *Series {
 	}
 	maxChg := obj.To("_max_chg", montLen)
 	minChg := obj.To("_min_chg", montLen)
-	chgVal := obj.Get(0) - obj.Get(montLen)
+	inVal := obj.Get(0)
+	if math.IsNaN(inVal) {
+		maxChg.Append(math.NaN())
+		minChg.Append(math.NaN())
+		return res.Append(math.NaN())
+	}
+	arr := WrapFloatArr(res, montLen+1, inVal)
+	if len(arr) < montLen+1 {
+		maxChg.Append(math.NaN())
+		minChg.Append(math.NaN())
+		return res.Append(math.NaN())
+	}
+	chgVal := inVal - arr[0]
 	maxChg.Append(max(0, chgVal))
 	minChg.Append(-min(0, chgVal))
 	up := RMA(maxChg, period).Get(0)
@@ -1335,16 +1472,11 @@ func LinRegAdv(obj *Series, period int, angle, intercept, degrees, r, slope, tsf
 	}
 	sumY := Sum(obj, period).Get(0)
 	val := obj.Get(0)
-	arr, _ := res.More.([]float64)
 	if math.IsNaN(val) {
-		arr = nil
-	} else if len(arr) >= period {
-		arr = append(arr[1:], val)
-	} else {
-		arr = append(arr, val)
+		return res.Append(math.NaN())
 	}
-	res.More = arr
-	if len(arr) < period {
+	arr := WrapFloatArr(res, period, val)
+	if len(arr) < period || math.IsNaN(sumY) {
 		return res.Append(math.NaN())
 	}
 	periodF := float64(period)
@@ -1382,9 +1514,8 @@ func LinRegAdv(obj *Series, period int, angle, intercept, degrees, r, slope, tsf
 	}
 	if tsf {
 		return res.Append(m*periodF + b)
-	} else {
-		return res.Append(m*(periodF-1) + b)
 	}
+	return res.Append(m*(periodF-1) + b)
 }
 
 /*
@@ -1405,6 +1536,7 @@ type cmdSta struct {
 	subs   []float64
 	sumPos float64
 	sumNeg float64
+	prevIn float64
 }
 
 /*
@@ -1431,11 +1563,17 @@ func CMOBy(obj *Series, period int, maType int) *Series {
 	if res.Cached() {
 		return res
 	}
-	val := obj.Get(0) - obj.Get(1)
 	sta, _ := res.More.(*cmdSta)
-	if sta == nil || math.IsNaN(val) {
-		sta = &cmdSta{}
+	if sta == nil {
+		sta = &cmdSta{
+			prevIn: math.NaN(),
+		}
 		res.More = sta
+	}
+	inVal := obj.Get(0)
+	val := inVal - sta.prevIn
+	if !math.IsNaN(inVal) {
+		sta.prevIn = inVal
 	}
 	if !math.IsNaN(val) {
 		if maType == 0 {
@@ -1481,6 +1619,8 @@ func CMOBy(obj *Series, period int, maType int) *Series {
 				sta.subs = append(sta.subs, val)
 			}
 		}
+	} else {
+		return res.Append(math.NaN())
 	}
 	if len(sta.subs) < period {
 		return res.Append(math.NaN())
@@ -1522,16 +1662,21 @@ func ALMA(obj *Series, period int, sigma, distOff float64) *Series {
 	if res.Cached() {
 		return res
 	}
-	if obj.Len() < period {
+	inVal := obj.Get(0)
+	if math.IsNaN(inVal) {
+		return res.Append(math.NaN())
+	}
+	arr := WrapFloatArr(res, period, inVal)
+	if len(arr) < period {
 		return res.Append(math.NaN())
 	}
 	m := distOff * (float64(period) - 1)
 	s := float64(period) / sigma
 	var windowSum, cumSum = float64(0), float64(0)
-	for i := 0; i < period; i++ {
+	for i := range arr {
 		fi := float64(i)
 		wei := math.Exp(-(fi - m) * (fi - m) / (2 * s * s))
-		windowSum += wei * obj.Get(i)
+		windowSum += wei * arr[period-i-1]
 		cumSum += wei
 	}
 	return res.Append(windowSum / cumSum)
@@ -1550,11 +1695,16 @@ func Stiffness(obj *Series, maLen, stiffLen, stiffMa int) *Series {
 	}
 	above := bound.To("_raw_gt", stiffLen)
 	if !above.Cached() {
-		val := float64(0)
-		if obj.Get(0) > bound.Get(0) {
-			val = 100 / float64(stiffLen)
+		boundVal := bound.Get(0)
+		if math.IsNaN(boundVal) {
+			above.Append(math.NaN())
+		} else {
+			val := float64(0)
+			if obj.Get(0) > boundVal {
+				val = 100 / float64(stiffLen)
+			}
+			above.Append(val)
 		}
-		above.Append(val)
 	}
 	return EMA(Sum(above, stiffLen), stiffMa)
 }
@@ -1565,18 +1715,19 @@ type dv2Sta struct {
 }
 
 /*
-DV Developed by David Varadi of http://cssanalytics.wordpress.com/
+DV2 Developed by David Varadi of http://cssanalytics.wordpress.com/
 
 	period: 252   maLen: 2
 
 	This seems to be the *Bounded* version.
+	这里和backtrader中实现不一致，是另一个版本。
 
 	See also:
 
 	  - http://web.archive.org/web/20131216100741/http://quantingdutchman.wordpress.com/2010/08/06/dv2-indicator-for-amibroker/
 	  - https://www.reddit.com/r/CapitalistExploits/comments/1d0azms/david_varadis_dv2_indicator_trading_strategies/
 */
-func DV(h, l, c *Series, period, maLen int) *Series {
+func DV2(h, l, c *Series, period, maLen int) *Series {
 	res := c.To("_dv", period*100+maLen)
 	if res.Cached() {
 		return res
@@ -1586,11 +1737,17 @@ func DV(h, l, c *Series, period, maLen int) *Series {
 		sta = &dv2Sta{}
 		res.More = sta
 	}
-	// calc close*2/(high+low)
-	chl := (h.Get(0) + l.Get(0)) / 2
-	if chl != 0 && !math.IsNaN(chl) {
-		chl = c.Get(0)/chl - 1
+	h0, l0, c0 := h.Get(0), l.Get(0), c.Get(0)
+	// 如果当前输入值为 NaN，返回 NaN然后跳过，不重置状态
+	if math.IsNaN(h0) || math.IsNaN(l0) || math.IsNaN(c0) {
+		return res.Append(math.NaN())
 	}
+	// calc close*2/(high+low)
+	den := (h0 + l0) / 2
+	if den == 0 {
+		return res.Append(math.NaN()) // 避免除以零，视为无效值
+	}
+	chl := c0/den - 1
 	sta.chl = append(sta.chl, chl)
 	// apply maLen to chl
 	chlLen := len(sta.chl)
@@ -1607,7 +1764,7 @@ func DV(h, l, c *Series, period, maLen int) *Series {
 		if chlLen > maLen*3 {
 			sta.chl = sta.chl[chlLen-maLen:]
 		}
-		if len(sta.dv) >= period {
+		if len(sta.dv) > period {
 			// percent rank for dv
 			lowNum, equalNum := float64(0), float64(0)
 			vals := sta.dv[len(sta.dv)-period:]
@@ -1692,7 +1849,8 @@ func calcHLRangePct(his []float64, cur float64) float64 {
 	for _, val := range his {
 		if val < minVal {
 			minVal = val
-		} else if val > maxVal {
+		}
+		if val > maxVal {
 			maxVal = val
 		}
 	}
@@ -1726,7 +1884,10 @@ func STC(obj *Series, period, fast, slow int, alpha float64) *Series {
 	}
 	s, _ := res.More.(*stcSta)
 	if s == nil {
-		s = &stcSta{}
+		s = &stcSta{
+			prevDDD: math.NaN(),
+			prevSTC: math.NaN(),
+		}
 		res.More = s
 	}
 	// 1. 计算MACD差值

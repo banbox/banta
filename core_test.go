@@ -10,7 +10,8 @@ import (
 type CaseItem struct {
 	Title   string
 	Expects []float64
-	Run     func() float64
+	RunVec  func(o, h, l, c, v, i []float64) []float64
+	Run     func(e *BarEnv) float64
 }
 
 var env = &BarEnv{
@@ -28,9 +29,9 @@ func runIndCases(t *testing.T, items []CaseItem) {
 		fails[it.Title] = 0
 		results[it.Title] = make([]float64, fakeBarNum)
 	}
-	RunFakeEnv(env, func(i int, kline Kline) {
+	RunFakeEnv(env, DataKline, func(i int, kline Kline) {
 		for _, it := range items {
-			calcVal := it.Run()
+			calcVal := it.Run(env)
 			results[it.Title][i] = calcVal
 			if !equalNearly(calcVal, it.Expects[i]) {
 				fails[it.Title] += 1
@@ -46,6 +47,45 @@ func runIndCases(t *testing.T, items []CaseItem) {
 			t.Errorf("FAIL %d %s\nExpect: %v\nCalcul: %v", failNum, it.Title, arrToStr(it.Expects), arrToStr(calcus))
 		}
 	}
+	t.Log("start test vector indicators")
+	o, h, l, c, v, i := extractOHLCV(DataKline)
+	for _, it := range items {
+		calcus := it.RunVec(o, h, l, c, v, i)
+		failNum := 0
+		if len(it.Expects) != len(calcus) {
+			failNum = len(calcus)
+		} else {
+			for j, expVal := range it.Expects {
+				if !equalNearly(calcus[j], expVal) {
+					failNum += 1
+				}
+			}
+		}
+		if failNum == 0 {
+			t.Logf("pass %s: %v", it.Title, arrToStr(calcus))
+		} else {
+			t.Errorf("FAIL %d %s\nExpect: %v\nCalcul: %v", failNum, it.Title, arrToStr(it.Expects), arrToStr(calcus))
+		}
+	}
+}
+
+func extractOHLCV(klineData []Kline) (o, h, l, c, v, i []float64) {
+	barNum := len(klineData)
+	o = make([]float64, 0, barNum)
+	h = make([]float64, 0, barNum)
+	l = make([]float64, 0, barNum)
+	c = make([]float64, 0, barNum)
+	v = make([]float64, 0, barNum)
+	i = make([]float64, 0, barNum)
+	for _, k := range klineData {
+		o = append(o, k.Open)
+		h = append(h, k.High)
+		l = append(l, k.Low)
+		c = append(c, k.Close)
+		v = append(v, k.Volume)
+		i = append(i, k.Info)
+	}
+	return
 }
 
 func arrToStr(arr []float64) string {
@@ -69,27 +109,71 @@ func TestSeries(t *testing.T) {
 	crossArr := []float64{0, 0, 0, 0, 0, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, -1, -2, -3, -4, -5, 1, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12, -13, -14, -15, -16, -17, -18, -19, -20, -21, -22, -23, -24, -25, -26, -27, -28, -29, -30, -31, -32, -33, -34, -35}
 	rangeArr := []float64{30573.6, 30612.7, 31149, 31149, 31149, 30756.1, 30488.4, 30327.9, 30327.9, 30396.9, 30608.4, 30608.4, 31441.7, 31441.7, 31441.7, 30293.3, 30276.4, 30216.8, 30126.1, 29895.5, 29895.5, 29891.4, 30070.8, 30070.8, 30070.8, 29336, 29336, 29336, 29339.1, 29339.1, 29339.1, 29701.2, 29701.2, 29701.2, 29180.2, 29180.2, 29101.1, 29202.7, 29759, 29759, 29759, 29572.8, 29443.7, 29420.7, 29420.7, 29419.5, 29419.5, 29188.8, 28714.4, 26609.7, 26175.9, 26175.9, 26175.9, 26419.2, 26419.2, 26419.2, 26164.6, 26087.7}
 	runIndCases(t, []CaseItem{
-		{"close", closeArr, func() float64 {
+		{"close", closeArr, nil, func(env *BarEnv) float64 {
 			return env.Close.Get(0)
 		}},
-		{"close+0.12", closeAdd12, func() float64 {
+		{"close+0.12", closeAdd12, nil, func(env *BarEnv) float64 {
 			return env.Close.Add(0.12).Get(0)
 		}},
-		{"close-0.1", closeSub_1, func() float64 {
+		{"close-0.1", closeSub_1, nil, func(env *BarEnv) float64 {
 			return env.Close.Sub(0.1).Get(0)
 		}},
-		{"close*1.1", closeMul1_1, func() float64 {
+		{"close*1.1", closeMul1_1, nil, func(env *BarEnv) float64 {
 			return env.Close.Mul(1.1).Get(0)
 		}},
-		{"abs(l-h)", absLSubH, func() float64 {
+		{"abs(l-h)", absLSubH, nil, func(env *BarEnv) float64 {
 			return env.Low.Sub(env.High).Abs().Get(0)
 		}},
-		{"cross", crossArr, func() float64 {
+		{"cross", crossArr, nil, func(env *BarEnv) float64 {
 			return float64(Cross(env.Close, 30000))
 		}},
-		{"range", rangeArr, func() float64 {
+		{"range", rangeArr, nil, func(env *BarEnv) float64 {
 			arr := env.Close.Range(0, 3)
 			return slices.Max(arr)
 		}},
 	})
+}
+
+// 新的测试运行器：对比带状态版本和并行版本的结果
+func runAndCompareCases(t *testing.T, klineData []Kline, items []CaseItem, showTrue bool) {
+	o, h, l, c, v, iData := extractOHLCV(klineData)
+
+	for _, it := range items {
+		t.Run(it.Title, func(t *testing.T) {
+			// 运行并行版本
+			vecResults := it.RunVec(o, h, l, c, v, iData)
+
+			// 运行带状态版本
+			localEnv := &BarEnv{} // 使用本地env确保测试隔离
+			*localEnv = *env      // 复制全局env的配置
+			var stateResults []float64
+
+			// 模拟K线推送
+			RunFakeEnv(localEnv, klineData, func(i int, kline Kline) {
+				raw := it.Run(localEnv)
+				stateResults = append(stateResults, raw)
+			})
+
+			if len(vecResults) != len(stateResults) {
+				t.Errorf("FAIL: Result count mismatch. Vector: %d, State: %d", len(vecResults), len(stateResults))
+				return
+			}
+
+			// 对比结果
+			isMismatch := false
+			for i := range vecResults {
+				if !equalNearly(vecResults[i], stateResults[i]) {
+					isMismatch = true
+					break
+				}
+			}
+
+			if isMismatch {
+				t.Errorf("State  Result: %s", arrToStr(stateResults))
+				t.Errorf("Vector Result: %s", arrToStr(vecResults))
+			} else if showTrue {
+				t.Logf("%s", arrToStr(vecResults))
+			}
+		})
+	}
 }

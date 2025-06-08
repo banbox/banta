@@ -156,6 +156,45 @@ func (s *Series) Range(start, stop int) []float64 {
 	return tmp
 }
 
+/*
+RangeValid 获取范围内的值，跳过nan。
+start 起始位置，0是最近的
+stop 结束位置，不含
+*/
+func (s *Series) RangeValid(start, stop int) ([]float64, []int) {
+	allLen := len(s.Data)
+	_start := max(allLen-stop, 0)
+	_stop := min(allLen-start, allLen)
+	if _start >= _stop {
+		return nil, nil
+	}
+	res := s.Data[_start:_stop]
+	tmp := make([]float64, 0, len(res))
+	ids := make([]int, 0, len(res))
+	// 逆序添加
+	ist := len(res) - 1
+	for i := ist; i >= 0; i-- {
+		v := res[i]
+		if !math.IsNaN(v) {
+			tmp = append(tmp, v)
+			ids = append(ids, ist-i)
+		}
+	}
+	i := _start - 1
+	for len(tmp) < len(res) {
+		if i < 0 {
+			return nil, nil
+		}
+		v := s.Data[i]
+		if !math.IsNaN(v) {
+			tmp = append(tmp, v)
+			ids = append(ids, allLen-i-1)
+		}
+		i -= 1
+	}
+	return tmp, ids
+}
+
 func (s *Series) Add(obj interface{}) *Series {
 	res, val := s.objVal("_add", obj)
 	if res.Cached() {
@@ -329,7 +368,7 @@ func Cross(se *Series, obj2 interface{}) int {
 	}
 	if newData {
 		diffVal := se.Get(0) - v2
-		if diffVal != 0 {
+		if diffVal != 0 && !math.IsNaN(diffVal) {
 			if math.IsNaN(log.PrevVal) {
 				log.PrevVal = diffVal
 			} else {
