@@ -129,6 +129,10 @@ jobs:
         shell: bash # Use bash for consistency across platforms
         run: cp python/setup_custom.py setup.py
 
+      - name: Set skip for python 13 on arm64
+        if: matrix.arch_cibw_go[0] == 'arm64'  # arm64 python13 fail: cgo: cannot parse $WORK/b001/_cgo_.o as ELF, Mach-O, PE or XCOFF
+        run: echo "SKIP_PY13=cp313-*" >> $GITHUB_ENV
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         env:
@@ -142,7 +146,7 @@ jobs:
           CGO_LDFLAGS_ALLOW: '.*'
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           # Skip building for Python 3.7 and older, and all PyPy versions.
-          CIBW_SKIP: "cp36-* cp37-* pp*"
+          CIBW_SKIP: "cp36-* cp37-* pp* ${{ env.SKIP_PY13 }}"
 
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
