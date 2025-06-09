@@ -144,7 +144,7 @@ jobs:
         env:
           CGO_ENABLED: 1
           # On Windows, GOPATH defaults to %USERPROFILE%\go
-          CIBW_ENVIRONMENT: 'PATH=%USERPROFILE%/go/bin;%PATH%'
+          # CIBW_ENVIRONMENT: 'PATH=%USERPROFILE%/go/bin;%PATH%'
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           # Skip building for Python 3.7 and older, and all PyPy versions.
           CIBW_SKIP: "cp37-* pp*"
