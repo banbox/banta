@@ -32,6 +32,7 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
+          CGO_ENABLED: 1
           # For Linux, install Go once per container using CIBW_BEFORE_ALL.
           # This is more efficient than installing it for every Python version.
           CIBW_BEFORE_ALL_LINUX: >
@@ -49,6 +50,8 @@ jobs:
           # Before building each wheel (on all platforms), install pybindgen and other build dependencies.
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           
+          # Skip building for Python 3.7 and older, and all PyPy versions.
+          CIBW_SKIP: "cp37-* pp*"
           # Skip running tests for now.
           CIBW_TEST_COMMAND: "echo 'Tests are skipped'"
           CIBW_TEST_SKIP: "*"
@@ -91,8 +94,13 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
+          CGO_ENABLED: 1
+          # Build for both x86_64 and arm64 (Apple Silicon)
+          CIBW_ARCHS: "x86_64 arm64"
           CIBW_ENVIRONMENT: 'PATH=$HOME/go/bin:$PATH'
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
+          # Skip building for Python 3.7 and older, and all PyPy versions.
+          CIBW_SKIP: "cp37-* pp*"
           CIBW_TEST_COMMAND: "echo 'Tests are skipped'"
           CIBW_TEST_SKIP: "*"
 
@@ -134,9 +142,12 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
+          CGO_ENABLED: 1
           # On Windows, GOPATH defaults to %USERPROFILE%\go
-          CIBW_ENVIRONMENT: 'PATH=%USERPROFILE%\\go\\bin;%PATH%'
+          CIBW_ENVIRONMENT: 'PATH=%USERPROFILE%/go/bin;%PATH%'
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
+          # Skip building for Python 3.7 and older, and all PyPy versions.
+          CIBW_SKIP: "cp37-* pp*"
           CIBW_TEST_COMMAND: "echo 'Tests are skipped'"
           CIBW_TEST_SKIP: "*"
 
