@@ -139,11 +139,31 @@ jobs:
         shell: bash # Use bash for consistency across platforms
         run: cp python/setup_custom.py setup.py
 
+      # - uses: actions/setup-python@v5
+      #   with:
+      #     python-version: '3.10' 
+
+      # - name: install cibuildwheel and pybindgen
+      #   run: pip install --break-system-packages cibuildwheel==2.21.3 pybindgen
+
+      # - name: build wheels
+      #   run: python -m cibuildwheel --output-dir wheelhouse
+      #   env:
+      #     CGO_ENABLED: 1  # build fails for arm if unset
+      #     CIBW_ARCHS: "native"
+      #     CIBW_REPAIR_WHEEL_COMMAND_MACOS: ""
+      #     PYTHON_BINARY_PATH: /usr/local/bin/python
+      #     CIBW_BUILD: "cp310-*"
+      #     CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* cp313-* *-musllinux_x86_64"
+      #     CIBW_ENVIRONMENT: >
+      #       PATH=$PATH:/usr/local/go/bin
+      #       GOARCH=amd64
+            
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         env:
           CGO_ENABLED: 1
-          CIBW_BUILD: "cp3*"
+          CIBW_BUILD: "cp311*"  # build would fail on 3.13 
           CIBW_ARCHS: "native"
           # CIBW_ARCHS: "${{ matrix.cibw_target }}"
           CIBW_BEFORE_BUILD: 'python python/set_gopy_env.py && call gopy_env.bat && pip install pybindgen setuptools wheel'
