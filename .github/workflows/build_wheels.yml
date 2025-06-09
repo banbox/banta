@@ -34,10 +34,10 @@ jobs:
       - name: Install Python dependencies for gopy
         run: pip install pybindgen setuptools wheel
 
-      - name: Install Go dependencies
-        run: |
-          go install github.com/go-python/gopy@latest
-          go install golang.org/x/tools/cmd/goimports@latest
+      # - name: Install Go dependencies
+      #   run: |
+      #     go install github.com/go-python/gopy@latest
+      #     go install golang.org/x/tools/cmd/goimports@latest
 
       - name: Use custom setup.py
         shell: bash # Use bash for consistency across platforms
@@ -52,8 +52,13 @@ jobs:
           # For Linux, install Go once per container using CIBW_BEFORE_ALL.
           # This is more efficient than installing it for every Python version.
           CIBW_BEFORE_ALL_LINUX: >
+            set -ex &&
             curl -sL https://go.dev/dl/go1.23.0.linux-amd64.tar.gz | tar -C /usr/local -xzf - &&
-            /usr/local/go/bin/go version
+            /usr/local/go/bin/go version &&
+            /usr/local/go/bin/go install github.com/go-python/gopy@latest &&
+            /usr/local/go/bin/go install golang.org/x/tools/cmd/goimports@latest &&
+            ln -sf /root/go/bin/gopy /usr/local/bin/gopy &&
+            ln -sf /root/go/bin/goimports /usr/local/bin/goimports
           
           # For Linux, add Go to the PATH inside the container.
           CIBW_ENVIRONMENT_LINUX: 'PATH=/usr/local/go/bin:/root/go/bin:$PATH'
