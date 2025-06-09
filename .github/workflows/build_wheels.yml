@@ -132,7 +132,7 @@ jobs:
 
       - name: Install Go dependencies
         run: |
-          go install github.com/go-python/gopy@0.4.0
+          go install github.com/go-python/gopy@v0.4.0
           go install golang.org/x/tools/cmd/goimports@latest
       
       - name: Use custom setup.py
