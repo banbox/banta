@@ -57,7 +57,7 @@ jobs:
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           
           # Skip building for Python 3.7 and older, and all PyPy versions.
-          CIBW_SKIP: "cp36-* cp37-* pp* *-i686"
+          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* pp* *-i686"
 
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
@@ -115,7 +115,7 @@ jobs:
           CGO_LDFLAGS_ALLOW: '.*'
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           # Skip building for Python 3.7 and older, and all PyPy versions.
-          CIBW_SKIP: "cp36-* cp37-* pp*"
+          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* pp*"
 
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
@@ -171,6 +171,8 @@ jobs:
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           # Skip building for Python 3.7 and older, and all PyPy versions.
           CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* pp* *-win32"
+          GOPY_LIBDIR: ${{ format('{0}/libs', env.pythonLocation) || '' }}
+          GOPY_PYLIB: "python311"
           CIBW_ENVIRONMENT: >
             GOARCH=amd64
 
