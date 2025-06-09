@@ -1,7 +1,7 @@
 # 安装
 ```shell
 # 安装Python依赖  
-python3 -m pip install pybindgen setuptools wheel  
+python3 -m pip install pybindgen setuptools wheel
   
 # 安装Go工具  
 go install golang.org/x/tools/cmd/goimports@latest  

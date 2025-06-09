@@ -31,6 +31,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install Python dependencies for gopy
+        run: pip install pybindgen setuptools wheel
+
       - name: Install Go dependencies
         run: |
           go install github.com/go-python/gopy@latest
