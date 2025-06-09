@@ -10,34 +10,17 @@ on:
   pull_request:
 
 jobs:
-  build_wheels:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-
+  build_wheels_linux:
+    name: Build wheels on Linux
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23'
-
-      - name: Set up Python for gopy
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Install Python dependencies for gopy
-        run: pip install pybindgen setuptools wheel
-
-      # - name: Install Go dependencies
-      #   run: |
-      #     go install github.com/go-python/gopy@latest
-      #     go install golang.org/x/tools/cmd/goimports@latest
 
       - name: Use custom setup.py
         shell: bash # Use bash for consistency across platforms
@@ -63,8 +46,8 @@ jobs:
           # For Linux, add Go to the PATH inside the container.
           CIBW_ENVIRONMENT_LINUX: 'PATH=/usr/local/go/bin:/root/go/bin:$PATH'
           
-          # Before building each wheel (on all platforms), install pybindgen.
-          CIBW_BEFORE_BUILD: "pip install pybindgen"
+          # Before building each wheel (on all platforms), install pybindgen and other build dependencies.
+          CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           
           # Skip running tests for now.
           CIBW_TEST_COMMAND: "echo 'Tests are skipped'"
@@ -73,12 +56,99 @@ jobs:
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
+          name: cibw-wheels-linux
+          path: ./wheelhouse/*.whl
+
+  build_wheels_macos:
+    name: Build wheels on macOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Go dependencies
+        run: |
+          go install github.com/go-python/gopy@latest
+          go install golang.org/x/tools/cmd/goimports@latest
+
+      - name: Use custom setup.py
+        shell: bash # Use bash for consistency across platforms
+        run: cp python/setup_custom.py setup.py
+
+      - name: Install cibuildwheel
+        run: python -m pip install cibuildwheel
+
+      - name: Build wheels
+        run: python -m cibuildwheel --output-dir wheelhouse
+        env:
+          CIBW_ENVIRONMENT: 'PATH=$HOME/go/bin:$PATH'
+          CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
+          CIBW_TEST_COMMAND: "echo 'Tests are skipped'"
+          CIBW_TEST_SKIP: "*"
+
+      - name: Store wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cibw-wheels-macos
+          path: ./wheelhouse/*.whl
+
+  build_wheels_windows:
+    name: Build wheels on Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Go dependencies
+        run: |
+          go install github.com/go-python/gopy@latest
+          go install golang.org/x/tools/cmd/goimports@latest
+      
+      - name: Use custom setup.py
+        shell: bash # Use bash for consistency across platforms
+        run: cp python/setup_custom.py setup.py
+
+      - name: Install cibuildwheel
+        run: python -m pip install cibuildwheel
+
+      - name: Build wheels
+        run: python -m cibuildwheel --output-dir wheelhouse
+        env:
+          # On Windows, GOPATH defaults to %USERPROFILE%\go
+          CIBW_ENVIRONMENT: 'PATH=%USERPROFILE%\\go\\bin;%PATH%'
+          CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
+          CIBW_TEST_COMMAND: "echo 'Tests are skipped'"
+          CIBW_TEST_SKIP: "*"
+
+      - name: Store wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cibw-wheels-windows
           path: ./wheelhouse/*.whl
 
   publish_wheels:
     name: Publish wheels to PyPI
-    needs: build_wheels
+    needs: [build_wheels_linux, build_wheels_macos, build_wheels_windows]
     runs-on: ubuntu-latest
     # Only run on 'v*' tags, matching the trigger.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
