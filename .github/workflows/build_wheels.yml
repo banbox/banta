@@ -6,12 +6,8 @@ name: Build and Publish Wheels
 
 on:
   push:
-    branches:
-      - main
-      - master
     tags:
       - 'v*'
-  pull_request:
 
 jobs:
   build_linux_amd64:
@@ -30,7 +26,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.23.3
         env:
           # CGO_ENABLED: 1
-          CIBW_BUILD: "cp311*_x86_64"
+          CIBW_BUILD: "cp3*_x86_64"
           CIBW_ARCHS: "native"
           # For Linux, install Go once per container using CIBW_BEFORE_ALL.
           # This is more efficient than installing it for every Python version.
@@ -50,7 +46,7 @@ jobs:
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           
           # Skip building for Python 3.7 and older, and all PyPy versions.
-          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* cp312-* cp313-* pp* *-i686"
+          CIBW_SKIP: "cp36-* cp37-* pp* *-i686"
 
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
@@ -82,7 +78,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.23.3
         env:
           CGO_ENABLED: 1
-          CIBW_BUILD: "cp311*_aarch64"
+          CIBW_BUILD: "cp3*_aarch64"
           CIBW_ARCHS: "aarch64"
           CIBW_BEFORE_ALL_LINUX: >
             set -ex &&
@@ -95,7 +91,7 @@ jobs:
           # For Linux, add Go to the PATH and set CGO_LDFLAGS to help the linker find the Python library.
           CIBW_ENVIRONMENT_LINUX: 'PATH=/usr/local/go/bin:/root/go/bin:$PATH'
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
-          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* cp313-* pp* *-musllinux*"
+          CIBW_SKIP: "cp36-* cp37-* pp* *-musllinux*"
 
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
@@ -139,14 +135,14 @@ jobs:
           CGO_ENABLED: 1
           # Build for both x86_64 and arm64 (Apple Silicon)
           CIBW_ARCHS: ${{ matrix.arch_cibw_go[0] }}
-          CIBW_BUILD: "cp3${{ matrix.python3_version }}-*"
+          CIBW_BUILD: "cp3*"
           # This is necessary for gopy to correctly cross-compile on macOS.
           CIBW_ENVIRONMENT: 'PATH=$HOME/go/bin:$PATH GOARCH=${{ matrix.arch_cibw_go[1] }}'
           # Allow all CGO LDFLAGS to prevent issues with certain flags in CI.
           CGO_LDFLAGS_ALLOW: '.*'
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           # Skip building for Python 3.7 and older, and all PyPy versions.
-          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* pp*"
+          CIBW_SKIP: "cp36-* cp37-* pp*"
 
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
@@ -189,14 +185,14 @@ jobs:
         uses: pypa/cibuildwheel@v2.23.3
         env:
           CGO_ENABLED: 1
-          CIBW_BUILD: "cp311*"  # build would fail on 3.13 
+          CIBW_BUILD: "cp3*"  # build would fail on 3.13 
           CIBW_ARCHS: "native"
           # CIBW_ARCHS: "${{ matrix.cibw_target }}"
           # 下面用于设置gopy环境变量，但目前不需要设置也可编译
           # python python/set_gopy_env.py && call gopy_env.bat && 
           CIBW_BEFORE_BUILD: 'pip install pybindgen setuptools wheel'
           # Skip building for Python 3.7 and older, and all PyPy versions.
-          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* pp* *-win32"
+          CIBW_SKIP: "cp36-* cp37-* cp313-* pp* *-win32"
           CIBW_ENVIRONMENT: >
             GOARCH=amd64
 
