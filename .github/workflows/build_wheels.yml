@@ -14,8 +14,8 @@ on:
   pull_request:
 
 jobs:
-  build_wheels_linux:
-    if: false
+  build_linux_amd64:
+    if: true
     name: Build wheels on Linux
     runs-on: ubuntu-latest
     steps:
@@ -30,7 +30,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.23.3
         env:
           # CGO_ENABLED: 1
-          CIBW_BUILD: "cp3*_x86_64"
+          CIBW_BUILD: "cp311*_x86_64"
           CIBW_ARCHS: "native"
           # For Linux, install Go once per container using CIBW_BEFORE_ALL.
           # This is more efficient than installing it for every Python version.
@@ -55,11 +55,53 @@ jobs:
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-linux
+          name: bbta-linux-amd64.whl
+          path: ./wheelhouse/*.whl
+
+  build_linux_arm:
+    name: Build wheels on Linux (aarch64)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use custom setup.py
+        shell: bash # Use bash for consistency across platforms
+        run: cp python/setup_custom.py setup.py
+
+      # QEMU is used by cibuildwheel to cross-compile wheels
+      # https://cibuildwheel.pypa.io/en/stable/faq/#emulation
+      - name: Set up QEMU
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.23.3
+        env:
+          CIBW_BUILD: "cp311*_aarch64"
+          CIBW_ARCHS: "aarch64"
+          CIBW_BEFORE_ALL_LINUX: >
+            set -ex &&
+            curl -sL https://go.dev/dl/go1.23.0.linux-arm64.tar.gz | tar -C /usr/local -xzf - &&
+            /usr/local/go/bin/go version &&
+            /usr/local/go/bin/go install github.com/go-python/gopy@latest &&
+            /usr/local/go/bin/go install golang.org/x/tools/cmd/goimports@latest &&
+            ln -sf /root/go/bin/gopy /usr/local/bin/gopy &&
+            ln -sf /root/go/bin/goimports /usr/local/bin/goimports
+          CIBW_ENVIRONMENT_LINUX: 'PATH=/usr/local/go/bin:/root/go/bin:$PATH'
+          CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
+          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* cp313-* pp* *-musllinux*"
+
+      - name: Store wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bbta-linux-arm64.whl
           path: ./wheelhouse/*.whl
 
   build_wheels_macos:
-    if: false
+    if: true
     name: MacOS ${{ matrix.os_version }} 3${{ matrix.python3_version }} ${{ matrix.arch_cibw_go[0] }}
     strategy:
       fail-fast: false
@@ -106,7 +148,7 @@ jobs:
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-macos-${{ matrix.arch_cibw_go[1] }}
+          name: bbta-macos-${{ matrix.arch_cibw_go[1] }}.whl
           path: ./wheelhouse/*.whl
 
   build_wheels_windows:
@@ -132,32 +174,12 @@ jobs:
 
       - name: Install Go dependencies
         run: |
-          go install github.com/go-python/gopy@v0.4.0
+          go install github.com/go-python/gopy@latest
           go install golang.org/x/tools/cmd/goimports@latest
       
       - name: Use custom setup.py
         shell: bash # Use bash for consistency across platforms
         run: cp python/setup_custom.py setup.py
-
-      # - uses: actions/setup-python@v5
-      #   with:
-      #     python-version: '3.10' 
-
-      # - name: install cibuildwheel and pybindgen
-      #   run: pip install --break-system-packages cibuildwheel==2.21.3 pybindgen
-
-      # - name: build wheels
-      #   run: python -m cibuildwheel --output-dir wheelhouse
-      #   env:
-      #     CGO_ENABLED: 1  # build fails for arm if unset
-      #     CIBW_ARCHS: "native"
-      #     CIBW_REPAIR_WHEEL_COMMAND_MACOS: ""
-      #     PYTHON_BINARY_PATH: /usr/local/bin/python
-      #     CIBW_BUILD: "cp310-*"
-      #     CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* cp313-* *-musllinux_x86_64"
-      #     CIBW_ENVIRONMENT: >
-      #       PATH=$PATH:/usr/local/go/bin
-      #       GOARCH=amd64
             
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
@@ -166,6 +188,7 @@ jobs:
           CIBW_BUILD: "cp311*"  # build would fail on 3.13 
           CIBW_ARCHS: "native"
           # CIBW_ARCHS: "${{ matrix.cibw_target }}"
+          # 下面用于设置gopy环境变量，但目前不需要设置也可编译
           # python python/set_gopy_env.py && call gopy_env.bat && 
           CIBW_BEFORE_BUILD: 'pip install pybindgen setuptools wheel'
           # Skip building for Python 3.7 and older, and all PyPy versions.
@@ -176,12 +199,12 @@ jobs:
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-windows-amd64
+          name: bbta-windows-amd64.whl
           path: ./wheelhouse/*.whl
 
   publish_wheels:
     name: Publish wheels to PyPI
-    needs: [build_wheels_linux, build_wheels_macos, build_wheels_windows]
+    needs: [build_linux_amd64, build_linux_arm, build_wheels_macos, build_wheels_windows]
     runs-on: ubuntu-latest
     # Only run on 'v*' tags, matching the trigger.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
@@ -194,7 +217,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: dist
-          pattern: cibw-wheels-*
+          pattern: bbta-*
           merge-multiple: true
 
       - name: Publish to PyPI
