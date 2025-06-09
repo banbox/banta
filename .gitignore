@@ -2,6 +2,7 @@
 **/__pycache__
 _out/*
 cibuildwheel.md
+gopy.md
 gopy_build_example
 pythonic-core
 
