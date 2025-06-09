@@ -59,7 +59,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_linux_arm:
-    if: false
+    if: true
     name: Build Linux (aarch64)
     runs-on: ubuntu-latest
 
@@ -104,7 +104,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_wheels_macos:
-    if: false
+    if: true
     name: MacOS ${{ matrix.os_version }} 3${{ matrix.python3_version }} ${{ matrix.arch_cibw_go[0] }}
     strategy:
       fail-fast: false
@@ -155,7 +155,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_wheels_windows:
-    if: false
+    if: true
     name: Build wheels on Windows
     runs-on: windows-2019
     # strategy:
