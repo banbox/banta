@@ -12,4 +12,5 @@ with open("gopy_env.bat", "w") as f:
     f.write('echo Setting GOPY environment variables for the current session...\n')
     f.write(f'set "GOPY_PYLIB={gopy_pylib}"\n')
     f.write(f'set "GOPY_LIBDIR={gopy_libdir}"\n')
-    f.write('echo Done.\n') 
+    f.write(f'echo GOPY_PYLIB set to %GOPY_PYLIB%\n')
+    f.write(f'echo GOPY_LIBDIR set to %GOPY_LIBDIR%\n')

@@ -166,7 +166,8 @@ jobs:
           CIBW_BUILD: "cp311*"  # build would fail on 3.13 
           CIBW_ARCHS: "native"
           # CIBW_ARCHS: "${{ matrix.cibw_target }}"
-          CIBW_BEFORE_BUILD: 'python python/set_gopy_env.py && call gopy_env.bat && pip install pybindgen setuptools wheel'
+          # python python/set_gopy_env.py && call gopy_env.bat && 
+          CIBW_BEFORE_BUILD: 'pip install pybindgen setuptools wheel'
           # Skip building for Python 3.7 and older, and all PyPy versions.
           CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* pp* *-win32"
           CIBW_ENVIRONMENT: >
