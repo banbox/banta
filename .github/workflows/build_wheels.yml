@@ -53,7 +53,7 @@ jobs:
           CIBW_ENVIRONMENT_LINUX: 'PATH=/usr/local/go/bin:/root/go/bin:$PATH'
           
           # Before building each wheel (on all platforms), install pybindgen and other build dependencies.
-          # CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
+          CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           
           # Skip building for Python 3.7 and older, and all PyPy versions.
           CIBW_SKIP: "cp36-* cp37-* pp* *-i686"
@@ -112,7 +112,7 @@ jobs:
           CIBW_ENVIRONMENT: 'PATH=$HOME/go/bin:$PATH GOARCH=${{ matrix.arch_cibw_go[1] }}'
           # Allow all CGO LDFLAGS to prevent issues with certain flags in CI.
           CGO_LDFLAGS_ALLOW: '.*'
-          # CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
+          CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           # Skip building for Python 3.7 and older, and all PyPy versions.
           CIBW_SKIP: "cp36-* cp37-* pp*"
 
@@ -125,6 +125,15 @@ jobs:
   build_wheels_windows:
     name: Build wheels on Windows
     runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+        - go_target: amd64
+          cibw_target: AMD64
+        #- go_target: 386
+        #  cibw_target: x86
+        #- go_target: arm64
+        #  cibw_target: ARM64
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -156,7 +165,8 @@ jobs:
         env:
           # CGO_ENABLED: 1
           CIBW_BUILD: "cp3*"
-          CIBW_ARCHS: "native"
+          CIBW_ARCHS: "${{ matrix.cibw_target }}"
+          CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           # Skip building for Python 3.7 and older, and all PyPy versions.
           CIBW_SKIP: "cp36-* cp37-* pp* *-win32"
           CIBW_ENVIRONMENT: >
