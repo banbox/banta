@@ -5,6 +5,14 @@ import sys
 import os
 import platform
 
+# --- Configuration ---
+PKG_NAME = 'banbta'
+GO_PACKAGES = {
+    'ta': 'github.com/banbox/banta/python/ta',
+    'tav': 'github.com/banbox/banta/python/tav'
+}
+# --- End Configuration ---
+
 class BinaryDistribution(setuptools.Distribution):
     """
     This is a custom distribution class that tells setuptools that this is a
@@ -26,57 +34,70 @@ class CustomBuildExt(build_ext):
         else:
             go_lib_ext = '.so'
 
-        # --- 1. Build the Go shared library ---
-        go_build_cmd = [
-            'go', 'build',
-            '-buildmode=c-shared',
-            '-o', f'ta/ta_go{go_lib_ext}',
-            './ta/ta.go'
-        ]
-        print(f"Running command: {' '.join(go_build_cmd)}", flush=True)
-        subprocess.check_call(go_build_cmd)
+        for mod_name, go_pkg_path in GO_PACKAGES.items():
+            mod_path = os.path.join(PKG_NAME, mod_name)
+            go_lib_name = f"{mod_name}_go"
+            
+            # Use 'lib' prefix for Unix-like systems
+            output_filename = f"lib{go_lib_name}{go_lib_ext}" if sys.platform != 'win32' else f"{go_lib_name}{go_lib_ext}"
+            output_filepath = os.path.join(mod_path, output_filename)
 
-        # --- 2. Generate C bindings with pybindgen ---
-        # This script generates ta/ta.c, which is the CPython wrapper.
-        py_executable = sys.executable
-        pybindgen_cmd = [py_executable, 'ta/build.py']
-        print(f"Running command: {' '.join(pybindgen_cmd)}", flush=True)
-        subprocess.check_call(pybindgen_cmd)
+            # --- 1. Build Go shared library ---
+            go_build_cmd = ['go', 'build', '-buildmode=c-shared', '-o', output_filepath, go_pkg_path]
+            print(f"Running command: {' '.join(go_build_cmd)}", flush=True)
+            subprocess.check_call(go_build_cmd)
 
-        # --- 3. Apply a Windows-specific fix for PyInit ---
-        # This replicates the 'sed' command from the original Makefile.
-        if sys.platform == 'win32':
-            c_file_path = os.path.join('ta', 'ta.c')
-            with open(c_file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            content = content.replace(' PyInit_', ' __declspec(dllexport) PyInit_')
-            with open(c_file_path, 'w', encoding='utf-8') as f:
-                f.write(content)
-            print("Applied Windows-specific PyInit fix.", flush=True)
+            # --- Windows Specific: Create .lib file for linker ---
+            if sys.platform == 'win32':
+                import_lib_a = f"{output_filepath}.a"
+                import_lib_lib = os.path.join(mod_path, f"{go_lib_name}.lib")
+                if os.path.exists(import_lib_a):
+                    if os.path.exists(import_lib_lib):
+                        os.remove(import_lib_lib)
+                    os.rename(import_lib_a, import_lib_lib)
+                    print(f"Prepared linker import library: {import_lib_lib}", flush=True)
 
-        # --- 4. Proceed with the standard C extension compilation ---
-        # Setuptools will now compile ta/ta.c and link it against the Go library.
+            # --- 2. Generate C bindings with pybindgen ---
+            py_executable = sys.executable
+            pybindgen_cmd = [py_executable, os.path.join(mod_path, 'build.py')]
+            print(f"Running command: {' '.join(pybindgen_cmd)}", flush=True)
+            subprocess.check_call(pybindgen_cmd)
+
+            # --- 3. Windows-specific fix for PyInit ---
+            if sys.platform == 'win32':
+                c_file_path = os.path.join(mod_path, f'{mod_name}.c')
+                with open(c_file_path, 'r', encoding='utf-8') as f: content = f.read()
+                if ' __declspec(dllexport) PyInit_' not in content:
+                    content = content.replace(' PyInit_', ' __declspec(dllexport) PyInit_')
+                    with open(c_file_path, 'w', encoding='utf-8') as f: f.write(content)
+                    print(f"Applied Windows PyInit fix for {mod_name}.", flush=True)
+        
         super().run()
 
-# Define the C extension module for setuptools
-ext_modules = [
-    setuptools.Extension(
-        name='ta._ta',
-        sources=['ta/ta.c'],
-        include_dirs=['ta'],
-        library_dirs=['ta'],
-        # The name of the go library is 'ta_go' (without 'lib' prefix on Linux/macOS)
-        libraries=['ta_go']
+ext_modules = []
+for mod_name in GO_PACKAGES.keys():
+    mod_path = os.path.join(PKG_NAME, mod_name)
+    ext = setuptools.Extension(
+        name=f'{PKG_NAME}.{mod_name}._{mod_name}',
+        sources=[os.path.join(mod_path, f'{mod_name}.c')],
+        include_dirs=[mod_path],
+        library_dirs=[mod_path],
+        libraries=[f'{mod_name}_go']
     )
-]
+    if platform.system() == "Linux":
+        ext.extra_link_args = ["-Wl,-rpath,$ORIGIN"]
+    elif platform.system() == "Darwin":
+        ext.extra_link_args = ["-Wl,-rpath,@loader_path"]
+    ext_modules.append(ext)
 
-# Add platform-specific linker arguments for rpath.
-# This ensures the Python extension can find the Go shared library at runtime.
-if platform.system() == "Linux":
-    ext_modules[0].extra_link_args = ["-Wl,-rpath,$ORIGIN"]
-elif platform.system() == "Darwin":
-    ext_modules[0].extra_link_args = ["-Wl,-rpath,@loader_path"]
-
+# Telling setuptools to include the Go shared libraries
+package_data_files = []
+if sys.platform == 'win32':
+    package_data_files.append('*.dll')
+elif sys.platform == 'darwin':
+    package_data_files.append('*.dylib')
+else:
+    package_data_files.append('*.so')
 
 setuptools.setup(
     name="banbta",
@@ -93,10 +114,11 @@ setuptools.setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
-    include_package_data=True,
     distclass=BinaryDistribution,
     ext_modules=ext_modules,
-    cmdclass={
-        'build_ext': CustomBuildExt,
+    cmdclass={'build_ext': CustomBuildExt},
+    package_data={
+        f'{PKG_NAME}.{mod_name}': package_data_files for mod_name in GO_PACKAGES.keys()
     },
+    zip_safe=False,
 ) 
