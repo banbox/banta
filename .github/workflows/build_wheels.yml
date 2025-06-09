@@ -51,7 +51,7 @@ jobs:
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           
           # Skip building for Python 3.7 and older, and all PyPy versions.
-          CIBW_SKIP: "cp37-* pp*"
+          CIBW_SKIP: "cp36-* cp37-* pp* *-i686"
           # Skip running tests for now.
           CIBW_TEST_COMMAND: "echo 'Tests are skipped'"
           CIBW_TEST_SKIP: "*"
@@ -100,7 +100,7 @@ jobs:
           CIBW_ENVIRONMENT: 'PATH=$HOME/go/bin:$PATH'
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           # Skip building for Python 3.7 and older, and all PyPy versions.
-          CIBW_SKIP: "cp37-* pp*"
+          CIBW_SKIP: "cp36-* cp37-* pp*"
           CIBW_TEST_COMMAND: "echo 'Tests are skipped'"
           CIBW_TEST_SKIP: "*"
 
@@ -147,7 +147,7 @@ jobs:
           # CIBW_ENVIRONMENT: 'PATH=%USERPROFILE%/go/bin;%PATH%'
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           # Skip building for Python 3.7 and older, and all PyPy versions.
-          CIBW_SKIP: "cp37-* pp*"
+          CIBW_SKIP: "cp36-* cp37-* pp* *-win32"
           CIBW_TEST_COMMAND: "echo 'Tests are skipped'"
           CIBW_TEST_SKIP: "*"
 
