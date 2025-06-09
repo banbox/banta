@@ -8,7 +8,7 @@ import json
 import re
 
 # --- Configuration ---
-PKG_NAME = 'banbta'
+PKG_NAME = 'bbta'
 GO_PACKAGES = {
     'ta': 'github.com/banbox/banta/python/ta',
     'tav': 'github.com/banbox/banta/python/tav'
@@ -35,7 +35,7 @@ class CustomBuildExt(build_ext):
         # e.g. build/lib.linux-x86_64-3.9
         build_lib = self.get_ext_fullpath(ext.name)
         pkg_dir = os.path.dirname(build_lib)
-        pkg_name = ext.name.split('.')[0]  # 'banbta'
+        pkg_name = ext.name.split('.')[0]  # 'bbta'
 
         # Ensure the target directory exists
         os.makedirs(os.path.join(pkg_dir, pkg_name), exist_ok=True)

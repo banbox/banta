@@ -11,7 +11,7 @@ go install github.com/go-python/gopy@latest
 # 编译
 ```shell
 gopy pkg -output=_out -vm=python3 \
-  -name=banbta \
+  -name=bbta \
   -version=0.3.0 \
   -author="banbot" \
   -email="banbot@163.com" \
