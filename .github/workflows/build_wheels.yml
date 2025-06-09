@@ -37,7 +37,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         env:
-          CGO_ENABLED: 1
+          # CGO_ENABLED: 1
           CIBW_BUILD: "cp3*_x86_64"
           CIBW_ARCHS: "native"
           # For Linux, install Go once per container using CIBW_BEFORE_ALL.
@@ -58,7 +58,7 @@ jobs:
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           
           # Skip building for Python 3.7 and older, and all PyPy versions.
-          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp311-* cp312-* cp313-* pp* *-i686"
+          CIBW_SKIP: "cp36-* cp37-* pp* *-i686"
 
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
