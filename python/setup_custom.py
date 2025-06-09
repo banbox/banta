@@ -47,7 +47,11 @@ class CustomBuildExt(build_ext):
             "gopy",
             "build",
             "-no-make",
-            "-dynamic-link=True",
+        ]
+        if platform.system() != "Windows":
+            cmd.append("-dynamic-link=True")
+        
+        cmd.extend([
             "-output",
             pkg_dir,
             "-name",
@@ -55,7 +59,7 @@ class CustomBuildExt(build_ext):
             "-vm",
             py_executable,
             "-rename=true",
-        ]
+        ])
         cmd.extend(go_packages)
 
         print(f"--- Compiling Go packages using gopy: {' '.join(cmd)} ---", flush=True)

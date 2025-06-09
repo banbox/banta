@@ -15,9 +15,9 @@ on:
 
 jobs:
   build_linux_amd64:
-    if: true
+    if: true # require -dynamic-link=True in gopy build
     name: Build Linux Amd64
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -59,7 +59,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_linux_arm:
-    if: true
+    if: true # require -dynamic-link=True in gopy build
     name: Build Linux (aarch64)
     runs-on: ubuntu-latest
 
@@ -155,7 +155,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_wheels_windows:
-    if: true
+    if: true # must remove -dynamic-link=True in gopy build
     name: Build wheels on Windows
     runs-on: windows-2019
     # strategy:
