@@ -30,15 +30,10 @@ jobs:
         uses: pypa/cibuildwheel@v2.23.3
         env:
           # CGO_ENABLED: 1
-          CIBW_BUILD: "cp3*_x86_64"
+          CIBW_BUILD: "cp311*_x86_64"
           CIBW_ARCHS: "native"
           # For Linux, install Go once per container using CIBW_BEFORE_ALL.
           # This is more efficient than installing it for every Python version.
-          # CIBW_BEFORE_ALL_LINUX: >
-          #   curl -sL https://go.dev/dl/go1.23.0.linux-amd64.tar.gz | tar -C /usr/local -xzf - &&
-          #   /usr/local/go/bin/go version &&
-          #   /usr/local/go/bin/go install github.com/go-python/gopy@latest &&
-          #   /usr/local/go/bin/go install golang.org/x/tools/cmd/goimports@latest
           CIBW_BEFORE_ALL_LINUX: >
             set -ex &&
             curl -sL https://go.dev/dl/go1.23.0.linux-amd64.tar.gz | tar -C /usr/local -xzf - &&
@@ -55,7 +50,7 @@ jobs:
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           
           # Skip building for Python 3.7 and older, and all PyPy versions.
-          CIBW_SKIP: "cp36-* cp37-* pp* *-i686"
+          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* cp312-* cp313-* pp* *-i686"
 
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
@@ -71,11 +66,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with: # fix gcc  cannot find -lpython3.11
-          python-version: '3.11'
-
       - name: Use custom setup.py
         shell: bash # Use bash for consistency across platforms
         run: cp python/setup_custom.py setup.py
@@ -87,9 +77,6 @@ jobs:
         uses: docker/setup-qemu-action@v3
         with:
           platforms: all
-
-      - name: Install cibuildwheel # fix gcc  cannot find -lpython3.11
-        run: python -m pip install cibuildwheel
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
