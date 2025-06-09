@@ -17,22 +17,14 @@ jobs:
   build_linux_amd64:
     if: true
     name: Build Linux Amd64
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with: # fix gcc  cannot find -lpython3.11
-          python-version: '3.11'
 
       - name: Use custom setup.py
         shell: bash # Use bash for consistency across platforms
         run: cp python/setup_custom.py setup.py
-
-      - name: Install cibuildwheel # fix gcc  cannot find -lpython3.11
-        run: python -m pip install cibuildwheel
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
@@ -42,6 +34,11 @@ jobs:
           CIBW_ARCHS: "native"
           # For Linux, install Go once per container using CIBW_BEFORE_ALL.
           # This is more efficient than installing it for every Python version.
+          # CIBW_BEFORE_ALL_LINUX: >
+          #   curl -sL https://go.dev/dl/go1.23.0.linux-amd64.tar.gz | tar -C /usr/local -xzf - &&
+          #   /usr/local/go/bin/go version &&
+          #   /usr/local/go/bin/go install github.com/go-python/gopy@latest &&
+          #   /usr/local/go/bin/go install golang.org/x/tools/cmd/goimports@latest
           CIBW_BEFORE_ALL_LINUX: >
             set -ex &&
             curl -sL https://go.dev/dl/go1.23.0.linux-amd64.tar.gz | tar -C /usr/local -xzf - &&
