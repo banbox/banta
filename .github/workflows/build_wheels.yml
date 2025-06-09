@@ -38,7 +38,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.23.3
         env:
           # CGO_ENABLED: 1
-          CIBW_BUILD: "cp311*_x86_64"
+          CIBW_BUILD: "cp3*_x86_64"
           CIBW_ARCHS: "native"
           # For Linux, install Go once per container using CIBW_BEFORE_ALL.
           # This is more efficient than installing it for every Python version.
@@ -58,7 +58,7 @@ jobs:
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           
           # Skip building for Python 3.7 and older, and all PyPy versions.
-          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* pp* *-i686"
+          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* cp312-* cp313-* pp* *-i686"
 
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
@@ -67,6 +67,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_linux_arm:
+    if: false
     name: Build Linux (aarch64)
     runs-on: ubuntu-latest
 
@@ -117,7 +118,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_wheels_macos:
-    if: true
+    if: false
     name: MacOS ${{ matrix.os_version }} 3${{ matrix.python3_version }} ${{ matrix.arch_cibw_go[0] }}
     strategy:
       fail-fast: false
@@ -168,6 +169,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_wheels_windows:
+    if: false
     name: Build wheels on Windows
     runs-on: windows-2019
     # strategy:
