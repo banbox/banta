@@ -119,7 +119,7 @@ jobs:
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-macos
+          name: cibw-wheels-macos-${{ matrix.arch_cibw_go[1] }}
           path: ./wheelhouse/*.whl
 
   build_wheels_windows:
@@ -163,19 +163,19 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         env:
-          # CGO_ENABLED: 1
+          CGO_ENABLED: 1
           CIBW_BUILD: "cp3*"
           CIBW_ARCHS: "${{ matrix.cibw_target }}"
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           # Skip building for Python 3.7 and older, and all PyPy versions.
-          CIBW_SKIP: "cp36-* cp37-* pp* *-win32"
+          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* pp* *-win32"
           CIBW_ENVIRONMENT: >
             GOARCH=amd64
 
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-windows
+          name: cibw-wheels-windows-${{ matrix.cibw_target }}
           path: ./wheelhouse/*.whl
 
   publish_wheels:
