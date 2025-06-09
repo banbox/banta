@@ -16,11 +16,16 @@ on:
 jobs:
   build_linux_amd64:
     if: true
-    name: Build wheels on Linux
+    name: Build Linux Amd64
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with: # fix gcc  cannot find -lpython3.11
+          python-version: '3.11'
 
       - name: Use custom setup.py
         shell: bash # Use bash for consistency across platforms
@@ -59,11 +64,16 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_linux_arm:
-    name: Build wheels on Linux (aarch64)
+    name: Build Linux (aarch64)
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with: # fix gcc  cannot find -lpython3.11
+          python-version: '3.11'
 
       - name: Use custom setup.py
         shell: bash # Use bash for consistency across platforms
