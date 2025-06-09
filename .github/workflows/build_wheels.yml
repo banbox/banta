@@ -52,7 +52,7 @@ jobs:
             ln -sf /root/go/bin/goimports /usr/local/bin/goimports
           
           # For Linux, add Go to the PATH and set CGO_LDFLAGS to help the linker find the Python library.
-          CIBW_ENVIRONMENT_LINUX: 'PATH=/usr/local/go/bin:/root/go/bin:$PATH CGO_LDFLAGS=$(python-config --ldflags)'
+          CIBW_ENVIRONMENT_LINUX: 'PATH=/usr/local/go/bin:/root/go/bin:$PATH'
           
           # Before building each wheel (on all platforms), install pybindgen and other build dependencies.
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
