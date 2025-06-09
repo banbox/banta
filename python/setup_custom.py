@@ -47,7 +47,7 @@ class CustomBuildExt(build_ext):
             "gopy",
             "build",
             "-no-make",
-            "-dynamic-link=True",
+            # "-dynamic-link=True",
             "-output",
             pkg_dir,
             "-name",
