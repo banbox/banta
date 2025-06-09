@@ -58,7 +58,7 @@ jobs:
           CIBW_BEFORE_BUILD: "pip install pybindgen setuptools wheel"
           
           # Skip building for Python 3.7 and older, and all PyPy versions.
-          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* cp312-* cp313-* pp* *-i686"
+          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp311-* cp312-* cp313-* pp* *-i686"
 
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
