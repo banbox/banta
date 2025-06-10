@@ -232,8 +232,8 @@ jobs:
 
   publish_wheels:
     name: Publish wheels to PyPI
-    needs: [build_wheels_windows]
-    # needs: [build_linux_amd64, build_linux_arm, build_wheels_macos, build_wheels_windows]
+    # needs: [build_wheels_windows]
+    needs: [build_linux_amd64, build_linux_arm, build_wheels_macos, build_wheels_windows]
     runs-on: ubuntu-latest
     # Only run on 'v*' tags, matching the trigger.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')

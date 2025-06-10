@@ -115,9 +115,12 @@ else:
 # Add the patterns to the main package's data, so the Go shared library is included.
 PACKAGE_DATA[PKG_NAME] = lib_patterns
 
+pkg_version = os.environ.get("PACKAGE_VERSION", "0.3.2")
+print(f"pkg_version: {pkg_version}")
+
 setuptools.setup(
     name=normalize(PKG_NAME),
-    version=os.environ.get("PACKAGE_VERSION", "0.3.0"),  # 版本号由CI根据tag自动设置
+    version=pkg_version,  # 版本号由CI根据tag自动设置
     author="banbot",
     author_email="banbot@163.com",
     description="python bindings for banta",
