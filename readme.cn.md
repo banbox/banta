@@ -8,6 +8,7 @@
 * **nan值兼容：** 智能忽略输入数据中间的nan值，后续计算继续使用之前的状态
 * **严格测试：** 每个指标都使用各种条件单元测试验证，并和常见指标库结果对比
 * **轻量无依赖：** 仅使用golang，无任何依赖包
+* **支持python：** 已通过gopy打包为bbta包，可直接从python中导入使用
 
 ## 支持的指标
 #### 和常见指标平台结果一致性对比
@@ -133,3 +134,80 @@ func main(){
 ```
 ### 提示
 建议您在进行研究时使用并行计算一次性获取指标计算结果，在实盘或基于事件驱动回测时使用带状态指标，效率更高。
+
+## Python安装
+```shell
+pip install bbta
+```
+仅支持python8及以上版本，暂不支持macos和windows下python13
+
+## Python使用带状态指标
+
+```python
+from bbta import ta
+
+# 1. 创建环境
+# BarEnv 用于管理状态，在每个时间周期/交易对上创建一个即可
+env = ta.BarEnv(TimeFrame="1m")
+
+# 2. 准备K线数据
+# (时间戳ms, 开, 高, 低, 收, 交易量)
+klines = [
+    (1672531200000, 100, 102, 99, 101, 1000), (1672531260000, 101, 103, 100, 102, 1200),
+    (1672531320000, 102, 105, 101, 104, 1500), (1672531380000, 104, 105, 103, 103, 1300),
+    (1672531440000, 103, 104, 102, 103, 1100), (1672531500000, 103, 106, 103, 105, 1600),
+    (1672531560000, 105, 107, 104, 106, 1800), (1672531620000, 106, 106, 102, 103, 2000),
+    (1672531680000, 103, 104, 101, 102, 1700), (1672531740000, 102, 103, 100, 101, 1400),
+]
+
+# 3. 模拟K线推送
+# 在实盘中，每收到一根新K线就调用一次 OnBar
+for kline in klines:
+    ts, o, h, l, c, v = kline
+    env.OnBar(ts, o, h, l, c, v, 0)
+
+    # 4. 计算指标
+    ma5 = ta.Series(ta.SMA(env.Close, 5))
+    ma30 = ta.Series(ta.SMA(env.Close, 30))
+
+    # 获取最新值
+    ma5_val = ma5.Get(0)
+    ma30_val = ma30.Get(0)
+    print(f"Close={c:.2f}, MA5={ma5_val:.2f}, MA30={ma30_val:.2f}")
+
+```
+
+## Python使用并行计算指标
+```python
+from bbta import tav, go
+
+# 1. 准备数据
+# 并行计算模式的函数接收 go.Slice_float64 类型
+# 我们可以从python list创建
+high_py = [102.0, 103.0, 105.0, 105.0, 104.0, 106.0, 107.0, 106.0, 104.0, 103.0]
+low_py = [99.0, 100.0, 101.0, 103.0, 102.0, 103.0, 104.0, 102.0, 101.0, 100.0]
+close_py = [101.0, 102.0, 104.0, 103.0, 103.0, 105.0, 106.0, 103.0, 102.0, 101.0]
+
+high = go.Slice_float64(high_py)
+low = go.Slice_float64(low_py)
+close = go.Slice_float64(close_py)
+
+# 2. 一次性计算所有指标
+# 返回结果也是 go.Slice 类型
+ma5 = tav.SMA(close, 5)
+atr = tav.ATR(high, low, close, 14)
+
+# 3. 查看结果
+# 可以转为python list查看
+print(f"Close: {list(close)[-5:]}")
+print(f"MA5:   {[f'{x:.2f}' for x in list(ma5)[-5:]]}")
+print(f"ATR:   {[f'{x:.2f}' for x in list(atr)[-5:]]}")
+
+# 对于多返回值指标，比如KDJ
+kdj_result = tav.KDJ(high, low, close, 9, 3, 3)
+k_line = kdj_result[0]
+d_line = kdj_result[1]
+j_line = kdj_result[2]
+print(f"K-line: {[f'{x:.2f}' for x in list(k_line)[-5:]]}")
+```
+

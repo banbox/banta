@@ -336,8 +336,8 @@ func MACDBy(obj *Series, fast int, slow int, smooth int, initType int) (*Series,
 	res := obj.To("_macd", fast*1000+slow*100+smooth*10+initType)
 	if !res.Cached() {
 		short := EMABy(obj, fast, initType)
-		long := EMABy(obj, slow, initType)
-		macd := short.Sub(long)
+		longMA := EMABy(obj, slow, initType)
+		macd := short.Sub(longMA)
 		signal := EMABy(macd, smooth, initType)
 		res.Append([]float64{macd.Get(0), signal.Get(0)})
 	}
@@ -1240,15 +1240,15 @@ https://www.tradingview.com/support/solutions/43000501979-chaikin-oscillator/
 
 short: 3, long: 10
 */
-func ChaikinOsc(env *BarEnv, short int, long int) *Series {
-	res := env.Close.To("_chaikinosc", short*1000+long)
+func ChaikinOsc(env *BarEnv, shortLen int, longLen int) *Series {
+	res := env.Close.To("_chaikinosc", shortLen*1000+longLen)
 	if res.Cached() {
 		return res
 	}
 	adl := ADL(env)
 
-	shortEma := EMA(adl, short)
-	longEma := EMA(adl, long)
+	shortEma := EMA(adl, shortLen)
+	longEma := EMA(adl, longLen)
 
 	oscValue := shortEma.Get(0) - longEma.Get(0)
 	return res.Append(oscValue)

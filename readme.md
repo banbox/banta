@@ -9,6 +9,7 @@
 * **NaN Compatibility:** Intelligently skips NaN values in input data, resuming calculations with the previous state.
 * **Rigorous Testing:** Each indicator is validated with unit tests under various conditions and compared against results from common indicator libraries.
 * **Lightweight & Dependency-Free:** Pure Go implementation with zero external dependencies.
+* **Python Support:** Packaged as the `bbta` module via gopy, ready to be imported and used directly in Python.
 
 ## Supported Indicators
 #### Consistency Comparison with Common Indicator Platforms
@@ -135,3 +136,75 @@ func main(){
 
 ### Note
 For research purposes, we recommend using parallel computation to compute indicators in bulk. For live trading or event-driven backtesting, state-cached indicators offer higher efficiency.
+
+## Python Installation  
+```shell  
+pip install bbta  
+```  
+Only supports Python 8 and above. Currently not compatible with Python 13 on macOS and Windows.
+
+## Python Usage (State-Caching Mode)
+```python
+from bbta import ta
+
+# 1. Create an environment
+# BarEnv manages state; create one for each time frame/trading pair.
+env = ta.BarEnv(TimeFrame="1m")
+
+# 2. Prepare candle data
+# (timestamp ms, open, high, low, close, volume)
+klines = [
+    (1672531200000, 100, 102, 99, 101, 1000), (1672531260000, 101, 103, 100, 102, 1200),
+    (1672531320000, 102, 105, 101, 104, 1500), (1672531380000, 104, 105, 103, 103, 1300),
+    (1672531440000, 103, 104, 102, 103, 1100), (1672531500000, 103, 106, 103, 105, 1600),
+    (1672531560000, 105, 107, 104, 106, 1800), (1672531620000, 106, 106, 102, 103, 2000),
+    (1672531680000, 103, 104, 101, 102, 1700), (1672531740000, 102, 103, 100, 101, 1400),
+]
+
+# 3. Simulate candle pushes
+# In live trading, call OnBar for each new candle.
+for kline in klines:
+    ts, o, h, l, c, v = kline
+    env.OnBar(ts, o, h, l, c, v, 0)
+
+    # 4. Calculate indicators
+    ma5 = ta.Series(ta.SMA(env.Close, 5))
+    ma30 = ta.Series(ta.SMA(env.Close, 30))
+
+    # Get the latest value
+    ma5_val = ma5.Get(0)
+    ma30_val = ma30.Get(0)
+    print(f"Close={c:.2f}, MA5={ma5_val:.2f}, MA30={ma30_val:.2f}")
+
+## Python Usage (Parallel Computation)
+```python
+from bbta import tav, go
+
+# 1. Prepare data
+# Functions in parallel mode accept go.Slice_float64 type.
+# We can create it from a Python list.
+high_py = [102.0, 103.0, 105.0, 105.0, 104.0, 106.0, 107.0, 106.0, 104.0, 103.0]
+low_py = [99.0, 100.0, 101.0, 103.0, 102.0, 103.0, 104.0, 102.0, 101.0, 100.0]
+close_py = [101.0, 102.0, 104.0, 103.0, 103.0, 105.0, 106.0, 103.0, 102.0, 101.0]
+
+high = go.Slice_float64(high_py)
+low = go.Slice_float64(low_py)
+close = go.Slice_float64(close_py)
+
+# 2. Compute all indicators at once
+# The result is also a go.Slice type.
+ma5 = tav.SMA(close, 5)
+atr = tav.ATR(high, low, close, 14)
+
+# 3. View the results
+# You can convert it to a Python list to view.
+print(f"Close: {list(close)[-5:]}")
+print(f"MA5:   {[f'{x:.2f}' for x in list(ma5)[-5:]]}")
+print(f"ATR:   {[f'{x:.2f}' for x in list(atr)[-5:]]}")
+
+# For indicators with multiple return values, like KDJ
+kdj_result = tav.KDJ(high, low, close, 9, 3, 3)
+k_line = kdj_result[0]
+d_line = kdj_result[1]
+j_line = kdj_result[2]
+print(f"K-line: {[f'{x:.2f}' for x in list(k_line)[-5:]]}")

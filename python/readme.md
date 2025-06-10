@@ -11,10 +11,30 @@ go install github.com/go-python/gopy@latest
 ```
 
 # 编译
-```shell
+```shell linux
+gopy build -output=_out -vm=python3 \
+  -name=bbta \
+  -dynamic-link=True \
+  github.com/banbox/banta/python/ta \
+  github.com/banbox/banta/python/tav
+```
+```shell windows
+gopy build -output=_out -vm=python3 ^
+  -name=bbta ^
+  github.com/banbox/banta/python/ta ^
+  github.com/banbox/banta/python/tav
+```
+注意-dynamic-link=True在linux下编译必须添加，windows下必须移除
+
+然后在根目录下运行python，执行`from _out import ta,tav`即可
+
+## 打包pkg
+下面打包是为了上传到pypi准备，本地测试无需打包
+```shell linux
 gopy pkg -output=_out -vm=python3 \
   -name=bbta \
-  -version=0.3.0 \
+  -dynamic-link=True \
+  --version=0.3.0
   -author="banbot" \
   -email="banbot@163.com" \
   -desc="python bindings for banta" \

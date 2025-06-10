@@ -11,7 +11,7 @@ on:
 
 jobs:
   build_linux_amd64:
-    if: false # require -dynamic-link=True in gopy build
+    if: true # require -dynamic-link=True in gopy build
     name: Build Linux Amd64
     runs-on: ubuntu-latest
     steps:
@@ -61,7 +61,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_linux_arm:
-    if: false # require -dynamic-link=True in gopy build
+    if: true # require -dynamic-link=True in gopy build
     name: Build Linux (aarch64)
     runs-on: ubuntu-latest
 
@@ -112,7 +112,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_wheels_macos:
-    if: false
+    if: true
     name: MacOS ${{ matrix.os_version }} 3${{ matrix.python3_version }} ${{ matrix.arch_cibw_go[0] }}
     strategy:
       fail-fast: false
@@ -213,7 +213,7 @@ jobs:
         env:
           PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
           CGO_ENABLED: 1
-          CIBW_BUILD: "cp312*"  # build would fail on 3.13 
+          CIBW_BUILD: "cp3*"  # build would fail on 3.13 
           CIBW_ARCHS: "native"
           # CIBW_ARCHS: "${{ matrix.cibw_target }}"
           # 下面用于设置gopy环境变量，但目前不需要设置也可编译

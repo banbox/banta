@@ -4,8 +4,6 @@
 package tav
 
 import (
-	"bytes"
-	"encoding/json"
 	banta_tav "github.com/banbox/banta/tav"
 )
 
@@ -334,13 +332,4 @@ func HeikinAshi(open, high, low, close []float64) [4][]float64 {
 // Cross detects crossovers between two data series.
 func Cross(data1 []float64, data2 []float64) []int {
 	return banta_tav.Cross(data1, data2)
-}
-
-type TJson struct {
-	Name string `json:"name"`
-}
-
-func JsonExp() {
-	bytes3 := new(bytes.Buffer)
-	_ = json.NewEncoder(bytes3).Encode(TJson{})
 }

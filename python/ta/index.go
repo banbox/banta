@@ -9,11 +9,12 @@ import (
 // 要么有两个返回值，其中第二个必须是 error 类型。
 // 因此，原始包中返回多个 *Series 的函数被修改为返回一个固定大小的 *Series 数组。
 
-// 为方便起见，定义类型别名，以便我们可以使用与原始包中相同的类型名称。
+// --- 封装函数 ---
 type Series = banta.Series
+
 type BarEnv = banta.BarEnv
 
-// --- 封装函数 ---
+type CrossLog = banta.CrossLog
 
 func AvgPrice(e *BarEnv) Series {
 	return *banta.AvgPrice(e)
