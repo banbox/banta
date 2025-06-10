@@ -18,6 +18,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set package version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: echo "PACKAGE_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
       - name: Use custom setup.py
         shell: bash # Use bash for consistency across platforms
         run: cp python/setup_custom.py setup.py
@@ -25,6 +30,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         env:
+          PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
           # CGO_ENABLED: 1
           CIBW_BUILD: "cp3*_x86_64"
           CIBW_ARCHS: "native"
@@ -62,6 +68,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set package version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: echo "PACKAGE_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
       - name: Use custom setup.py
         shell: bash # Use bash for consistency across platforms
         run: cp python/setup_custom.py setup.py
@@ -77,6 +88,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         env:
+          PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
           CGO_ENABLED: 1
           CIBW_BUILD: "cp3*_aarch64"
           CIBW_ARCHS: "aarch64"
@@ -115,6 +127,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set package version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: echo "PACKAGE_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -136,6 +153,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         env:
+          PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
           CGO_ENABLED: 1
           # Build for both x86_64 and arm64 (Apple Silicon)
           CIBW_ARCHS: ${{ matrix.arch_cibw_go[0] }}
@@ -171,6 +189,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set package version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: echo "PACKAGE_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -188,6 +211,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         env:
+          PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
           CGO_ENABLED: 1
           CIBW_BUILD: "cp312*"  # build would fail on 3.13 
           CIBW_ARCHS: "native"

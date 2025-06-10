@@ -117,7 +117,7 @@ PACKAGE_DATA[PKG_NAME] = lib_patterns
 
 setuptools.setup(
     name=normalize(PKG_NAME),
-    version="0.3.1-beta.6",  # 发布pip包之前需修改这里，和banta版本号保持一致
+    version=os.environ.get("PACKAGE_VERSION", "0.3.0"),  # 版本号由CI根据tag自动设置
     author="banbot",
     author_email="banbot@163.com",
     description="python bindings for banta",

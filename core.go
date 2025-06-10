@@ -330,11 +330,11 @@ func (s *Series) To(k string, v int) *Series {
 }
 
 /*
-Cross 计算最近一次交叉的距离。如果两个都变化，则两个都必须是序列。或者一个是常数一个是序列
+Cross 计算最近一次交叉的距离。比较对象必须是常数或Series对象
 返回值：正数上穿，负数下穿，0表示未知或重合；abs(ret) - 1表示交叉点与当前bar的距离
 */
-func Cross(se *Series, obj2 interface{}) int {
-	var env = se.Env
+func (s *Series) Cross(obj2 interface{}) int {
+	var env = s.Env
 	var key int
 	var v2 float64
 	if se2, ok := obj2.(*Series); ok {
@@ -355,7 +355,7 @@ func Cross(se *Series, obj2 interface{}) int {
 	}
 	var newData = false
 	var log *CrossLog
-	if val, ok := se.XLogs[key]; ok {
+	if val, ok := s.XLogs[key]; ok {
 		log = val
 		if env.TimeStart > log.Time {
 			newData = true
@@ -364,10 +364,10 @@ func Cross(se *Series, obj2 interface{}) int {
 	} else {
 		newData = true
 		log = &CrossLog{env.TimeStart, math.NaN(), []*XState{}}
-		se.XLogs[key] = log
+		s.XLogs[key] = log
 	}
 	if newData {
-		diffVal := se.Get(0) - v2
+		diffVal := s.Get(0) - v2
 		if diffVal != 0 && !math.IsNaN(diffVal) {
 			if math.IsNaN(log.PrevVal) {
 				log.PrevVal = diffVal
