@@ -59,7 +59,6 @@ class CustomBuildExt(build_ext):
             pkg_name,
             "-vm",
             py_executable,
-            "-rename=true",
         ])
         cmd.extend(go_packages)
 
@@ -118,7 +117,7 @@ PACKAGE_DATA[PKG_NAME] = lib_patterns
 
 setuptools.setup(
     name=normalize(PKG_NAME),
-    version="0.3.1-beta.5",  # 发布pip包之前需修改这里，和banta版本号保持一致
+    version="0.3.1-beta.6",  # 发布pip包之前需修改这里，和banta版本号保持一致
     author="banbot",
     author_email="banbot@163.com",
     description="python bindings for banta",
