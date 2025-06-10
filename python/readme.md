@@ -1,3 +1,5 @@
+注意，下面是手动编译构建pip包的流程，只支持当前操作系统，无法发布到pypi，需通过github actions自动编译发布。
+
 # 安装
 ```shell
 # 安装Python依赖  
