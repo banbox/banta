@@ -36,9 +36,10 @@ class CustomBuildExt(build_ext):
         build_lib = self.get_ext_fullpath(ext.name)
         pkg_dir = os.path.dirname(build_lib)
         pkg_name = ext.name.split('.')[0]  # 'bbta'
+        output_dir = os.path.join(pkg_dir, pkg_name)
 
         # Ensure the target directory exists
-        os.makedirs(os.path.join(pkg_dir, pkg_name), exist_ok=True)
+        os.makedirs(output_dir, exist_ok=True)
 
         go_packages = ext.sources
         py_executable = sys.executable
@@ -53,7 +54,7 @@ class CustomBuildExt(build_ext):
         
         cmd.extend([
             "-output",
-            pkg_dir,
+            output_dir,
             "-name",
             pkg_name,
             "-vm",
@@ -88,14 +89,6 @@ class CustomBuildExt(build_ext):
             env["CGO_LDFLAGS"] = f"{env.get('CGO_LDFLAGS', '')} {' '.join(ld_flags)}".strip()
         
         subprocess.check_call(cmd, env=env)
-
-        # Create __init__.py to re-export symbols from submodules.
-        init_py_path = os.path.join(pkg_dir, pkg_name, "__init__.py")
-        print(f"--- Creating __init__.py at {init_py_path} ---", flush=True)
-        with open(init_py_path, "w") as f:
-            f.write(f'"""{pkg_name} python bindings for banta"""\n')
-            for go_pkg_name in GO_PACKAGES.keys():
-                f.write(f"from .{go_pkg_name} import *\n")
 
 # --- Package Configuration ---
 

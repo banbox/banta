@@ -11,7 +11,7 @@ on:
 
 jobs:
   build_linux_amd64:
-    if: true # require -dynamic-link=True in gopy build
+    if: false # require -dynamic-link=True in gopy build
     name: Build Linux Amd64
     runs-on: ubuntu-latest
     steps:
@@ -51,11 +51,11 @@ jobs:
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: bbta-linux-amd64.whl
+          name: bbta-linux-amd64
           path: ./wheelhouse/*.whl
 
   build_linux_arm:
-    if: true # require -dynamic-link=True in gopy build
+    if: false # require -dynamic-link=True in gopy build
     name: Build Linux (aarch64)
     runs-on: ubuntu-latest
 
@@ -96,11 +96,11 @@ jobs:
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: bbta-linux-arm64.whl
+          name: bbta-linux-arm64
           path: ./wheelhouse/*.whl
 
   build_wheels_macos:
-    if: true
+    if: false
     name: MacOS ${{ matrix.os_version }} 3${{ matrix.python3_version }} ${{ matrix.arch_cibw_go[0] }}
     strategy:
       fail-fast: false
@@ -151,7 +151,7 @@ jobs:
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: bbta-macos-${{ matrix.arch_cibw_go[1] }}.whl
+          name: bbta-macos-${{ matrix.arch_cibw_go[1] }}
           path: ./wheelhouse/*.whl
 
   build_wheels_windows:
@@ -189,7 +189,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.23.3
         env:
           CGO_ENABLED: 1
-          CIBW_BUILD: "cp3*"  # build would fail on 3.13 
+          CIBW_BUILD: "cp312*"  # build would fail on 3.13 
           CIBW_ARCHS: "native"
           # CIBW_ARCHS: "${{ matrix.cibw_target }}"
           # 下面用于设置gopy环境变量，但目前不需要设置也可编译
@@ -203,12 +203,13 @@ jobs:
       - name: Store wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: bbta-windows-amd64.whl
+          name: bbta-windows-amd64
           path: ./wheelhouse/*.whl
 
   publish_wheels:
     name: Publish wheels to PyPI
-    needs: [build_linux_amd64, build_linux_arm, build_wheels_macos, build_wheels_windows]
+    needs: [build_wheels_windows]
+    # needs: [build_linux_amd64, build_linux_arm, build_wheels_macos, build_wheels_windows]
     runs-on: ubuntu-latest
     # Only run on 'v*' tags, matching the trigger.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
