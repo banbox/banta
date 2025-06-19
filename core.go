@@ -385,3 +385,8 @@ func (s *Series) Cross(obj2 interface{}) int {
 	}
 	return 0
 }
+
+// Deprecated: use Series.Cross instead
+func Cross(obj1 *Series, obj2 interface{}) int {
+	return obj1.Cross(obj2)
+}
