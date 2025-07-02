@@ -50,6 +50,10 @@ func Sum(obj *Series, period int) *Series {
 	if sta == nil {
 		sta = &sumState{}
 		res.More = sta
+		res.DupMore = func(more interface{}) interface{} {
+			sta := more.(*sumState)
+			return &sumState{sta.sumVal, append([]float64{}, sta.arr...)}
+		}
 	}
 	curVal := obj.Get(0)
 	if !math.IsNaN(curVal) {
@@ -104,6 +108,10 @@ func VWMA(price *Series, vol *Series, period int) *Series {
 	if more == nil {
 		more = &moreVWMA{}
 		res.More = more
+		res.DupMore = func(mAny interface{}) interface{} {
+			m := mAny.(*moreVWMA)
+			return &moreVWMA{m.sumCost, m.sumWei, append([]float64{}, m.costs...), append([]float64{}, m.volumes...)}
+		}
 	}
 	if math.IsNaN(cost) {
 		return res.Append(math.NaN())
@@ -254,6 +262,10 @@ func WMA(obj *Series, period int) *Series {
 	if more == nil {
 		more = &wmaSta{}
 		res.More = more
+		res.DupMore = func(mAny interface{}) interface{} {
+			m := mAny.(*wmaSta)
+			return &wmaSta{append([]float64{}, m.arr...), m.allSum, m.weiSum}
+		}
 	}
 	more.arr = append(more.arr, val)
 	if len(more.arr) > period {
@@ -362,6 +374,9 @@ func rsiBy(obj *Series, period int, subVal float64) *Series {
 		// 状态: [0:prevVal, 1:avgGain, 2:avgLoss, 3:validCount]
 		more = []float64{math.NaN(), 0, 0, 0}
 		res.More = more
+		res.DupMore = func(more interface{}) interface{} {
+			return append([]float64{}, more.([]float64)...)
+		}
 	}
 
 	prevVal := more[0]
@@ -742,6 +757,9 @@ func WrapFloatArr(res *Series, period int, inVal float64) []float64 {
 	var more []float64
 	if res.More == nil {
 		more = make([]float64, 0, period)
+		res.DupMore = func(more interface{}) interface{} {
+			return append([]float64{}, more.([]float64)...)
+		}
 	} else {
 		more = res.More.([]float64)
 	}
@@ -946,6 +964,10 @@ func pluMinDMBy(high *Series, low *Series, close *Series, period, method int) (*
 	if state == nil {
 		state = &dmState{}
 		res.More = state
+		res.DupMore = func(more interface{}) interface{} {
+			m := more.(*dmState)
+			return &dmState{m.Num, m.DmPosMA, m.DmNegMA, m.TRMA}
+		}
 	}
 	if math.IsNaN(tr) {
 		res.Append([]float64{math.NaN(), math.NaN()})
@@ -987,7 +1009,12 @@ func ROC(obj *Series, period int) *Series {
 	if res.Cached() {
 		return res
 	}
-	prevs, _ := res.More.([]float64)
+	prevs, ok := res.More.([]float64)
+	if !ok {
+		res.DupMore = func(more interface{}) interface{} {
+			return append([]float64{}, more.([]float64)...)
+		}
+	}
 	curVal := obj.Get(0)
 	if math.IsNaN(curVal) {
 		return res.Append(math.NaN())
@@ -1063,6 +1090,10 @@ func ER(obj *Series, period int) *Series {
 			prevIn: math.NaN(),
 		}
 		res.More = sta
+		res.DupMore = func(more interface{}) interface{} {
+			m := more.(*tnrState)
+			return &tnrState{append([]float64{}, m.arr...), m.sumVal, m.prevIn, append([]float64{}, m.arrIn...)}
+		}
 	}
 	inVal := obj.Get(0)
 	curVal := math.Abs(inVal - sta.prevIn)
@@ -1187,6 +1218,10 @@ func CMF(env *BarEnv, period int) *Series {
 	if sta == nil {
 		sta = &cmfState{}
 		res.More = sta
+		res.DupMore = func(more interface{}) interface{} {
+			m := more.(*cmfState)
+			return &cmfState{append([]float64{}, m.mfSum...), append([]float64{}, m.volSum...), m.sumMfVal, m.sumVol}
+		}
 	}
 
 	var resVal = math.NaN()
@@ -1358,6 +1393,10 @@ func MFI(e *BarEnv, period int) *Series {
 	if sta == nil {
 		sta = &mfiState{sumNeg: math.NaN(), sumPos: math.NaN(), prev: math.NaN()}
 		res.More = sta
+		res.DupMore = func(more interface{}) interface{} {
+			m := more.(*mfiState)
+			return &mfiState{append([]float64{}, m.posArr...), append([]float64{}, m.negArr...), m.sumPos, m.sumNeg, m.prev}
+		}
 	}
 	avgPrice := AvgPrice(e)
 	price0 := avgPrice.Get(0)
@@ -1569,6 +1608,10 @@ func CMOBy(obj *Series, period int, maType int) *Series {
 			prevIn: math.NaN(),
 		}
 		res.More = sta
+		res.DupMore = func(more interface{}) interface{} {
+			m := more.(*cmdSta)
+			return &cmdSta{append([]float64{}, m.subs...), m.sumPos, m.sumNeg, m.prevIn}
+		}
 	}
 	inVal := obj.Get(0)
 	val := inVal - sta.prevIn
@@ -1736,6 +1779,10 @@ func DV2(h, l, c *Series, period, maLen int) *Series {
 	if sta == nil {
 		sta = &dv2Sta{}
 		res.More = sta
+		res.DupMore = func(more interface{}) interface{} {
+			m := more.(*dv2Sta)
+			return &dv2Sta{append([]float64{}, m.chl...), append([]float64{}, m.dv...)}
+		}
 	}
 	h0, l0, c0 := h.Get(0), l.Get(0), c.Get(0)
 	// 如果当前输入值为 NaN，返回 NaN然后跳过，不重置状态
@@ -1889,6 +1936,10 @@ func STC(obj *Series, period, fast, slow int, alpha float64) *Series {
 			prevSTC: math.NaN(),
 		}
 		res.More = s
+		res.DupMore = func(more interface{}) interface{} {
+			m := more.(*stcSta)
+			return &stcSta{append([]float64{}, m.macdHis...), append([]float64{}, m.dddHis...), m.prevDDD, m.prevSTC}
+		}
 	}
 	// 1. 计算MACD差值
 	fastEMA := EMA(obj, fast).Get(0)

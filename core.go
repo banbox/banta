@@ -71,13 +71,59 @@ func (e *BarEnv) NewSeries(data []float64) *Series {
 	subs := make(map[string]map[int]*Series)
 	xlogs := make(map[int]*CrossLog)
 	lock := &sync.Mutex{}
-	res := &Series{e.VNum, e, data, nil, e.TimeStart, nil, subs, xlogs, lock}
+	res := &Series{e.VNum, e, data, nil, e.TimeStart, nil, nil, subs, xlogs, lock}
 	e.VNum += 1
+	if e.Items == nil {
+		e.Items = make(map[int]*Series)
+	}
+	e.Items[res.ID] = res
 	return res
 }
 
 func (e *BarEnv) BarCount(start int64) float64 {
 	return float64(e.TimeStop-start) / float64(e.TFMSecs)
+}
+
+func (e *BarEnv) Clone() *BarEnv {
+	res := &BarEnv{
+		TimeStart:  e.TimeStart,
+		TimeStop:   e.TimeStop,
+		Exchange:   e.Exchange,
+		MarketType: e.MarketType,
+		Symbol:     e.Symbol,
+		TimeFrame:  e.TimeFrame,
+		TFMSecs:    e.TFMSecs,
+		BarNum:     e.BarNum,
+		MaxCache:   e.MaxCache,
+		VNum:       e.VNum,
+		Items:      make(map[int]*Series),
+		Data:       make(map[string]interface{}),
+	}
+	for k, v := range e.Data {
+		res.Data[k] = v
+	}
+	if e.Open != nil {
+		res.Open = e.Open.CopyTo(res)
+	}
+	if e.High != nil {
+		res.High = e.High.CopyTo(res)
+	}
+	if e.Low != nil {
+		res.Low = e.Low.CopyTo(res)
+	}
+	if e.Close != nil {
+		res.Close = e.Close.CopyTo(res)
+	}
+	if e.Volume != nil {
+		res.Volume = e.Volume.CopyTo(res)
+	}
+	if e.Info != nil {
+		res.Info = e.Info.CopyTo(res)
+	}
+	for _, v := range e.Items {
+		v.CopyTo(res)
+	}
+	return res
 }
 
 func (s *Series) Set(obj interface{}) *Series {
@@ -329,6 +375,42 @@ func (s *Series) To(k string, v int) *Series {
 	return old
 }
 
+func (s *Series) CopyTo(e *BarEnv) *Series {
+	if e == nil {
+		e = s.Env
+	}
+	if e.Items == nil {
+		e.Items = make(map[int]*Series)
+	}
+	if old, ok := e.Items[s.ID]; ok {
+		return old
+	}
+	cols := make([]*Series, len(s.Cols))
+	for i, v := range s.Cols {
+		cols[i] = v.CopyTo(e)
+	}
+	subs := make(map[string]map[int]*Series)
+	for fn, idMap := range s.Subs {
+		sub := make(map[int]*Series)
+		for id, v := range idMap {
+			sub[id] = v.CopyTo(e)
+		}
+		subs[fn] = sub
+	}
+	xlogs := make(map[int]*CrossLog)
+	for id, v := range s.XLogs {
+		xlogs[id] = v.Clone()
+	}
+	lock := &sync.Mutex{}
+	res := &Series{s.ID, e, s.Data, cols, s.Time, nil, s.DupMore, subs, xlogs, lock}
+	res.More = s.More
+	if s.DupMore != nil && s.More != nil {
+		res.More = s.DupMore(s.More)
+	}
+	e.Items[s.ID] = res
+	return res
+}
+
 /*
 Cross 计算最近一次交叉的距离。比较对象必须是常数或Series对象
 返回值：正数上穿，负数下穿，0表示未知或重合；abs(ret) - 1表示交叉点与当前bar的距离
@@ -389,4 +471,23 @@ func (s *Series) Cross(obj2 interface{}) int {
 // Deprecated: use Series.Cross instead
 func Cross(obj1 *Series, obj2 interface{}) int {
 	return obj1.Cross(obj2)
+}
+
+func (c *CrossLog) Clone() *CrossLog {
+	res := &CrossLog{
+		Time:    c.Time,
+		PrevVal: c.PrevVal,
+		Hist:    make([]*XState, len(c.Hist)),
+	}
+	for i, v := range c.Hist {
+		res.Hist[i] = v.Clone()
+	}
+	return res
+}
+
+func (s *XState) Clone() *XState {
+	return &XState{
+		Sign:   s.Sign,
+		BarNum: s.BarNum,
+	}
 }
