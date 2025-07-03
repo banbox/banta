@@ -11,8 +11,13 @@ func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume, info float64
 	if e.TimeStop > barMs {
 		return fmt.Errorf("%s/%s old Bar Receive: %d, Current: %d", e.Symbol, e.TimeFrame, barMs, e.TimeStop)
 	}
-	e.TimeStart = barMs
-	e.TimeStop = barMs + e.TFMSecs
+	e.OnBar2(barMs, barMs+e.TFMSecs, open, high, low, close, volume, info)
+	return nil
+}
+
+func (e *BarEnv) OnBar2(barMS, endMS int64, open, high, low, close, volume, info float64) {
+	e.TimeStart = barMS
+	e.TimeStop = endMS
 	e.BarNum += 1
 	if e.Open == nil {
 		e.Open = e.NewSeries([]float64{open})
@@ -26,21 +31,20 @@ func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume, info float64
 			e.MaxCache = 1000
 		}
 	} else {
-		e.Open.Time = barMs
+		e.Open.Time = barMS
 		e.Open.Data = append(e.Open.Data, open)
-		e.High.Time = barMs
+		e.High.Time = barMS
 		e.High.Data = append(e.High.Data, high)
-		e.Low.Time = barMs
+		e.Low.Time = barMS
 		e.Low.Data = append(e.Low.Data, low)
-		e.Close.Time = barMs
+		e.Close.Time = barMS
 		e.Close.Data = append(e.Close.Data, close)
-		e.Volume.Time = barMs
+		e.Volume.Time = barMS
 		e.Volume.Data = append(e.Volume.Data, volume)
-		e.Info.Time = barMs
+		e.Info.Time = barMS
 		e.Info.Data = append(e.Info.Data, info)
 		e.TrimOverflow()
 	}
-	return nil
 }
 
 func (e *BarEnv) Reset() {
@@ -124,6 +128,31 @@ func (e *BarEnv) Clone() *BarEnv {
 		v.CopyTo(res)
 	}
 	return res
+}
+
+// ResetTo reset all Series to given(exclude ohlcv)
+func (e *BarEnv) ResetTo(env *BarEnv) {
+	rootIds := map[int]bool{
+		env.Open.ID:   true,
+		env.High.ID:   true,
+		env.Low.ID:    true,
+		env.Close.ID:  true,
+		env.Volume.ID: true,
+		env.Info.ID:   true,
+	}
+	for id, s := range env.Items {
+		if _, ok := rootIds[id]; ok {
+			continue
+		}
+		delete(e.Items, id)
+		s.CopyTo(e)
+	}
+	e.Open.loadEnvSubs()
+	e.High.loadEnvSubs()
+	e.Low.loadEnvSubs()
+	e.Close.loadEnvSubs()
+	e.Volume.loadEnvSubs()
+	e.Info.loadEnvSubs()
 }
 
 func (s *Series) Set(obj interface{}) *Series {
@@ -409,6 +438,16 @@ func (s *Series) CopyTo(e *BarEnv) *Series {
 	}
 	e.Items[s.ID] = res
 	return res
+}
+
+func (s *Series) loadEnvSubs() {
+	for _, idMap := range s.Subs {
+		for id := range idMap {
+			if dup, ok := s.Env.Items[id]; ok {
+				idMap[id] = dup
+			}
+		}
+	}
 }
 
 /*

@@ -51,8 +51,8 @@ func Sum(obj *Series, period int) *Series {
 		sta = &sumState{}
 		res.More = sta
 		res.DupMore = func(more interface{}) interface{} {
-			sta := more.(*sumState)
-			return &sumState{sta.sumVal, append([]float64{}, sta.arr...)}
+			s := more.(*sumState)
+			return &sumState{s.sumVal, append([]float64{}, s.arr...)}
 		}
 	}
 	curVal := obj.Get(0)
