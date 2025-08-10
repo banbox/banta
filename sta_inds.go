@@ -839,7 +839,7 @@ ADX Average Directional Index
 
 suggest period: 14
 
-return [maDX, plusDI, minusDI]
+return maDX
 */
 func ADX(high *Series, low *Series, close *Series, period int) *Series {
 	return ADXBy(high, low, close, period, 0, 0)
@@ -854,7 +854,7 @@ method=1 TradingView "ADX and DI for v4"
 suggest period: 14
 smoothing: 0 to use period
 
-return [maDX, plusDI, minusDI]
+return maDX
 */
 func ADXBy(high *Series, low *Series, close *Series, period, smoothing, method int) *Series {
 	plusDI, minusDI := pluMinDIBy(high, low, close, period, method)
