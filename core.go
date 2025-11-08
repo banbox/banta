@@ -2,6 +2,7 @@ package banta
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 	"sync"
@@ -74,14 +75,31 @@ func (e *BarEnv) TrimOverflow() {
 func (e *BarEnv) NewSeries(data []float64) *Series {
 	subs := make(map[string]map[int]*Series)
 	xlogs := make(map[int]*CrossLog)
-	lock := &sync.Mutex{}
-	res := &Series{e.VNum, e, data, nil, e.TimeStart, nil, nil, subs, xlogs, lock}
+	res := e.newSeries(data, nil, nil, nil, subs, xlogs)
 	e.VNum += 1
+	e.LockItems.Lock()
 	if e.Items == nil {
 		e.Items = make(map[int]*Series)
 	}
 	e.Items[res.ID] = res
+	e.LockItems.Unlock()
 	return res
+}
+
+func (e *BarEnv) newSeries(data []float64, cols []*Series, more interface{}, dupMore func(interface{}) interface{},
+	subs map[string]map[int]*Series, xlogs map[int]*CrossLog) *Series {
+	return &Series{
+		ID:         e.VNum,
+		Env:        e,
+		Data:       data,
+		Cols:       cols,
+		Time:       e.TimeStart,
+		More:       more,
+		DupMore:    dupMore,
+		Subs:       subs,
+		XLogs:      xlogs,
+		LockSubMap: make(map[string]*sync.Mutex),
+	}
 }
 
 func (e *BarEnv) BarCount(start int64) float64 {
@@ -103,9 +121,11 @@ func (e *BarEnv) Clone() *BarEnv {
 		Items:      make(map[int]*Series),
 		Data:       make(map[string]interface{}),
 	}
+	e.LockData.Lock()
 	for k, v := range e.Data {
 		res.Data[k] = v
 	}
+	e.LockData.Unlock()
 	if e.Open != nil {
 		res.Open = e.Open.CopyTo(res)
 	}
@@ -124,7 +144,10 @@ func (e *BarEnv) Clone() *BarEnv {
 	if e.Info != nil {
 		res.Info = e.Info.CopyTo(res)
 	}
-	for _, v := range e.Items {
+	e.LockItems.RLock()
+	itemList := maps.Values(e.Items)
+	e.LockItems.RUnlock()
+	for v := range itemList {
 		v.CopyTo(res)
 	}
 	return res
@@ -140,11 +163,17 @@ func (e *BarEnv) ResetTo(env *BarEnv) {
 		env.Volume.ID: true,
 		env.Info.ID:   true,
 	}
+	env.LockItems.Lock()
+	var items = make([]*Series, 0, len(env.Items))
 	for id, s := range env.Items {
 		if _, ok := rootIds[id]; ok {
 			continue
 		}
 		delete(e.Items, id)
+		items = append(items, s)
+	}
+	env.LockItems.Unlock()
+	for _, s := range items {
 		s.CopyTo(e)
 	}
 	e.Open.loadEnvSubs()
@@ -335,13 +364,13 @@ func (s *Series) Len() int {
 }
 
 func (s *Series) Cut(keepNum int) {
-	s.subLock.Lock()
+	s.LockSub.Lock()
 	for _, dv := range s.Subs {
 		for _, v := range dv {
 			v.Cut(keepNum)
 		}
 	}
-	s.subLock.Unlock()
+	s.LockSub.Unlock()
 	if len(s.Cols) > 0 {
 		for _, col := range s.Cols {
 			col.Cut(keepNum)
@@ -389,13 +418,13 @@ func (s *Series) objVal(rel string, obj interface{}) (*Series, float64) {
 }
 
 func (s *Series) To(k string, v int) *Series {
-	s.subLock.Lock()
+	s.LockSub.Lock()
 	sub, _ := s.Subs[k]
 	if sub == nil {
 		sub = make(map[int]*Series)
 		s.Subs[k] = sub
 	}
-	s.subLock.Unlock()
+	s.LockSub.Unlock()
 	old, _ := sub[v]
 	if old == nil {
 		old = s.Env.NewSeries(nil)
@@ -408,10 +437,13 @@ func (s *Series) CopyTo(e *BarEnv) *Series {
 	if e == nil {
 		e = s.Env
 	}
+	e.LockItems.Lock()
 	if e.Items == nil {
 		e.Items = make(map[int]*Series)
 	}
-	if old, ok := e.Items[s.ID]; ok {
+	old, ok := e.Items[s.ID]
+	e.LockItems.Unlock()
+	if ok {
 		return old
 	}
 	cols := make([]*Series, len(s.Cols))
@@ -430,20 +462,24 @@ func (s *Series) CopyTo(e *BarEnv) *Series {
 	for id, v := range s.XLogs {
 		xlogs[id] = v.Clone()
 	}
-	lock := &sync.Mutex{}
-	res := &Series{s.ID, e, s.Data, cols, s.Time, nil, s.DupMore, subs, xlogs, lock}
+	res := e.newSeries(s.Data, cols, nil, s.DupMore, subs, xlogs)
 	res.More = s.More
 	if s.DupMore != nil && s.More != nil {
 		res.More = s.DupMore(s.More)
 	}
+	e.LockItems.Lock()
 	e.Items[s.ID] = res
+	e.LockItems.Unlock()
 	return res
 }
 
 func (s *Series) loadEnvSubs() {
 	for _, idMap := range s.Subs {
 		for id := range idMap {
-			if dup, ok := s.Env.Items[id]; ok {
+			s.Env.LockItems.RLock()
+			dup, ok := s.Env.Items[id]
+			s.Env.LockItems.RUnlock()
+			if ok {
 				idMap[id] = dup
 			}
 		}

@@ -636,7 +636,7 @@ var (
 )
 
 /*
-KDJBy alias: stoch indicator;
+KDJBy alias: talib stoch indicator;
 
 period: 9, sm1: 3, sm2: 3
 

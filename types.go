@@ -38,19 +38,23 @@ type BarEnv struct {
 	Info       *Series
 	Data       map[string]interface{}
 	Items      map[int]*Series
+	LockData   sync.RWMutex
+	LockItems  sync.RWMutex
 }
 
 type Series struct {
-	ID      int
-	Env     *BarEnv
-	Data    []float64
-	Cols    []*Series
-	Time    int64
-	More    interface{}
-	DupMore func(interface{}) interface{}
-	Subs    map[string]map[int]*Series // 由此序列派生的；function：hash：object
-	XLogs   map[int]*CrossLog          // 此序列交叉记录
-	subLock *sync.Mutex
+	ID         int
+	Env        *BarEnv
+	Data       []float64
+	Cols       []*Series
+	Time       int64
+	More       interface{}
+	DupMore    func(interface{}) interface{}
+	Subs       map[string]map[int]*Series // 由此序列派生的；function：hash：object
+	XLogs      map[int]*CrossLog          // 此序列交叉记录
+	LockSubMap map[string]*sync.Mutex
+	LockSub    sync.Mutex
+	LockXLogs  sync.Mutex
 }
 
 type CrossLog struct {
