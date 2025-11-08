@@ -88,7 +88,13 @@ func (e *BarEnv) NewSeries(data []float64) *Series {
 
 func (e *BarEnv) newSeries(data []float64, cols []*Series, more interface{}, dupMore func(interface{}) interface{},
 	subs map[string]map[int]*Series, xlogs map[int]*CrossLog) *Series {
-	return &Series{
+	if subs == nil {
+		subs = make(map[string]map[int]*Series)
+	}
+	if xlogs == nil {
+		xlogs = make(map[int]*CrossLog)
+	}
+	res := &Series{
 		ID:         e.VNum,
 		Env:        e,
 		Data:       data,
@@ -100,6 +106,10 @@ func (e *BarEnv) newSeries(data []float64, cols []*Series, more interface{}, dup
 		XLogs:      xlogs,
 		LockSubMap: make(map[string]*sync.Mutex),
 	}
+	for fn := range res.Subs {
+		res.LockSubMap[fn] = &sync.Mutex{}
+	}
+	return res
 }
 
 func (e *BarEnv) BarCount(start int64) float64 {
@@ -185,9 +195,14 @@ func (e *BarEnv) ResetTo(env *BarEnv) {
 }
 
 func (s *Series) Set(obj interface{}) *Series {
-	if !s.Cached() {
-		return s.Append(obj)
+	if s.Cached() {
+		return s
 	}
+	s.LockData.Lock()
+	if !s.Cached() {
+		s.Append(obj)
+	}
+	s.LockData.Unlock()
 	return s
 }
 
@@ -304,7 +319,12 @@ func (s *Series) Add(obj interface{}) *Series {
 	if res.Cached() {
 		return res
 	}
-	return res.Append(s.Get(0) + val)
+	res.LockData.Lock()
+	if !res.Cached() {
+		res.Append(s.Get(0) + val)
+	}
+	res.LockData.Unlock()
+	return res
 }
 
 func (s *Series) Sub(obj interface{}) *Series {
@@ -312,7 +332,12 @@ func (s *Series) Sub(obj interface{}) *Series {
 	if res.Cached() {
 		return res
 	}
-	return res.Append(s.Get(0) - val)
+	res.LockData.Lock()
+	if !res.Cached() {
+		res.Append(s.Get(0) - val)
+	}
+	res.LockData.Unlock()
+	return res
 }
 
 func (s *Series) Mul(obj interface{}) *Series {
@@ -320,7 +345,12 @@ func (s *Series) Mul(obj interface{}) *Series {
 	if res.Cached() {
 		return res
 	}
-	return res.Append(s.Get(0) * val)
+	res.LockData.Lock()
+	if !res.Cached() {
+		res.Append(s.Get(0) * val)
+	}
+	res.LockData.Unlock()
+	return res
 }
 
 func (s *Series) Div(obj interface{}) *Series {
@@ -328,7 +358,12 @@ func (s *Series) Div(obj interface{}) *Series {
 	if res.Cached() {
 		return res
 	}
-	return res.Append(s.Get(0) / val)
+	res.LockData.Lock()
+	if !res.Cached() {
+		res.Append(s.Get(0) / val)
+	}
+	res.LockData.Unlock()
+	return res
 }
 
 func (s *Series) Min(obj interface{}) *Series {
@@ -336,7 +371,12 @@ func (s *Series) Min(obj interface{}) *Series {
 	if res.Cached() {
 		return res
 	}
-	return res.Append(math.Min(s.Get(0), val))
+	res.LockData.Lock()
+	if !res.Cached() {
+		res.Append(math.Min(s.Get(0), val))
+	}
+	res.LockData.Unlock()
+	return res
 }
 
 func (s *Series) Max(obj interface{}) *Series {
@@ -344,7 +384,12 @@ func (s *Series) Max(obj interface{}) *Series {
 	if res.Cached() {
 		return res
 	}
-	return res.Append(math.Max(s.Get(0), val))
+	res.LockData.Lock()
+	if !res.Cached() {
+		res.Append(math.Max(s.Get(0), val))
+	}
+	res.LockData.Unlock()
+	return res
 }
 
 func (s *Series) Abs() *Series {
@@ -352,7 +397,11 @@ func (s *Series) Abs() *Series {
 	if res.Cached() {
 		return res
 	}
-	res.Append(math.Abs(s.Get(0)))
+	res.LockData.Lock()
+	if !res.Cached() {
+		res.Append(math.Abs(s.Get(0)))
+	}
+	res.LockData.Unlock()
 	return res
 }
 
@@ -386,6 +435,10 @@ func (s *Series) Cut(keepNum int) {
 
 func (s *Series) Back(num int) *Series {
 	res := s.To("_back", num)
+	if res.Cached() {
+		return res
+	}
+	res.LockData.Lock()
 	if !res.Cached() {
 		endPos := len(s.Data) - num
 		if endPos > 0 {
@@ -395,6 +448,7 @@ func (s *Series) Back(num int) *Series {
 		}
 		res.Time = s.Env.TimeStop
 	}
+	res.LockData.Unlock()
 	return res
 }
 
@@ -424,12 +478,19 @@ func (s *Series) To(k string, v int) *Series {
 		sub = make(map[int]*Series)
 		s.Subs[k] = sub
 	}
+	lock, ok := s.LockSubMap[k]
+	if !ok {
+		lock = &sync.Mutex{}
+		s.LockSubMap[k] = lock
+	}
 	s.LockSub.Unlock()
+	lock.Lock()
 	old, _ := sub[v]
 	if old == nil {
 		old = s.Env.NewSeries(nil)
 		sub[v] = old
 	}
+	lock.Unlock()
 	return old
 }
 
@@ -450,16 +511,20 @@ func (s *Series) CopyTo(e *BarEnv) *Series {
 	for i, v := range s.Cols {
 		cols[i] = v.CopyTo(e)
 	}
-	subs := make(map[string]map[int]*Series)
-	for fn, idMap := range s.Subs {
+	s.LockSub.Lock()
+	subs := maps.Clone(s.Subs)
+	s.LockSub.Unlock()
+	for fn, idMap := range subs {
 		sub := make(map[int]*Series)
 		for id, v := range idMap {
 			sub[id] = v.CopyTo(e)
 		}
 		subs[fn] = sub
 	}
-	xlogs := make(map[int]*CrossLog)
-	for id, v := range s.XLogs {
+	s.LockXLogs.Lock()
+	xlogs := maps.Clone(s.XLogs)
+	s.LockXLogs.Unlock()
+	for id, v := range xlogs {
 		xlogs[id] = v.Clone()
 	}
 	res := e.newSeries(s.Data, cols, nil, s.DupMore, subs, xlogs)
@@ -474,11 +539,12 @@ func (s *Series) CopyTo(e *BarEnv) *Series {
 }
 
 func (s *Series) loadEnvSubs() {
+	s.Env.LockItems.RLock()
+	envItems := maps.Clone(s.Env.Items)
+	s.Env.LockItems.RUnlock()
 	for _, idMap := range s.Subs {
 		for id := range idMap {
-			s.Env.LockItems.RLock()
-			dup, ok := s.Env.Items[id]
-			s.Env.LockItems.RUnlock()
+			dup, ok := envItems[id]
 			if ok {
 				idMap[id] = dup
 			}
@@ -512,6 +578,7 @@ func (s *Series) Cross(obj2 interface{}) int {
 	}
 	var newData = false
 	var log *CrossLog
+	s.LockXLogs.Lock()
 	if val, ok := s.XLogs[key]; ok {
 		log = val
 		if env.TimeStart > log.Time {
@@ -523,6 +590,7 @@ func (s *Series) Cross(obj2 interface{}) int {
 		log = &CrossLog{env.TimeStart, math.NaN(), []*XState{}}
 		s.XLogs[key] = log
 	}
+	s.LockXLogs.Unlock()
 	if newData {
 		diffVal := s.Get(0) - v2
 		if diffVal != 0 && !math.IsNaN(diffVal) {

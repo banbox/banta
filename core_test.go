@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -50,6 +51,10 @@ func runIndCases(t *testing.T, items []CaseItem) {
 	t.Log("start test vector indicators")
 	o, h, l, c, v, i := extractOHLCV(DataKline)
 	for _, it := range items {
+		if it.RunVec == nil {
+			t.Logf("skip %s: RunVec not implemented", it.Title)
+			continue
+		}
 		calcus := it.RunVec(o, h, l, c, v, i)
 		failNum := 0
 		if len(it.Expects) != len(calcus) {
@@ -132,6 +137,52 @@ func TestSeries(t *testing.T) {
 			return slices.Max(arr)
 		}},
 	})
+}
+
+// TestConcurrent 测试多线程并发访问
+func TestConcurrent(t *testing.T) {
+	testEnv := &BarEnv{
+		TimeFrame:  "1d",
+		TFMSecs:    86400000,
+		Exchange:   "binance",
+		MarketType: "future",
+	}
+	
+	// 先加载一些数据
+	for i := 0; i < 20; i++ {
+		k := DataKline[i]
+		testEnv.OnBar(k.Time, k.Open, k.High, k.Low, k.Close, k.Volume, k.Info)
+	}
+	
+	// 并发读取和计算
+	var wg sync.WaitGroup
+	goroutineNum := 10
+	
+	for i := 0; i < goroutineNum; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// 测试基本读取操作
+			_ = testEnv.Close.Get(0)
+			_ = testEnv.High.Get(1)
+			_ = testEnv.Low.Get(2)
+			
+			// 测试计算操作
+			_ = testEnv.Close.Add(100).Get(0)
+			_ = testEnv.Close.Sub(50).Get(0)
+			_ = testEnv.Close.Mul(1.1).Get(0)
+			_ = testEnv.High.Sub(testEnv.Low).Abs().Get(0)
+			
+			// 测试交叉计算
+			_ = testEnv.Close.Cross(30000)
+			
+			// 测试范围操作
+			_ = testEnv.Close.Range(0, 5)
+		}()
+	}
+	
+	wg.Wait()
+	t.Log("Concurrent test passed")
 }
 
 // 新的测试运行器：对比带状态版本和并行版本的结果

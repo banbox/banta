@@ -55,6 +55,7 @@ type Series struct {
 	LockSubMap map[string]*sync.Mutex
 	LockSub    sync.Mutex
 	LockXLogs  sync.Mutex
+	LockData   sync.RWMutex
 }
 
 type CrossLog struct {
