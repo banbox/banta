@@ -15,12 +15,7 @@ type CaseItem struct {
 	Run     func(e *BarEnv) float64
 }
 
-var env = &BarEnv{
-	TimeFrame:  "1d",
-	TFMSecs:    86400000,
-	Exchange:   "binance",
-	MarketType: "future",
-}
+var env, _ = NewBarEnv("binance", "spot", "", "1d")
 
 func runIndCases(t *testing.T, items []CaseItem) {
 	var fails = make(map[string]int)
@@ -141,23 +136,18 @@ func TestSeries(t *testing.T) {
 
 // TestConcurrent 测试多线程并发访问
 func TestConcurrent(t *testing.T) {
-	testEnv := &BarEnv{
-		TimeFrame:  "1d",
-		TFMSecs:    86400000,
-		Exchange:   "binance",
-		MarketType: "future",
-	}
-	
+	testEnv, _ := NewBarEnv("binance", "spot", "", "1d")
+
 	// 先加载一些数据
 	for i := 0; i < 20; i++ {
 		k := DataKline[i]
 		testEnv.OnBar(k.Time, k.Open, k.High, k.Low, k.Close, k.Volume, k.Info)
 	}
-	
+
 	// 并发读取和计算
 	var wg sync.WaitGroup
 	goroutineNum := 10
-	
+
 	for i := 0; i < goroutineNum; i++ {
 		wg.Add(1)
 		go func() {
@@ -166,21 +156,21 @@ func TestConcurrent(t *testing.T) {
 			_ = testEnv.Close.Get(0)
 			_ = testEnv.High.Get(1)
 			_ = testEnv.Low.Get(2)
-			
+
 			// 测试计算操作
 			_ = testEnv.Close.Add(100).Get(0)
 			_ = testEnv.Close.Sub(50).Get(0)
 			_ = testEnv.Close.Mul(1.1).Get(0)
 			_ = testEnv.High.Sub(testEnv.Low).Abs().Get(0)
-			
+
 			// 测试交叉计算
 			_ = testEnv.Close.Cross(30000)
-			
+
 			// 测试范围操作
 			_ = testEnv.Close.Range(0, 5)
 		}()
 	}
-	
+
 	wg.Wait()
 	t.Log("Concurrent test passed")
 }

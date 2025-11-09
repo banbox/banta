@@ -8,6 +8,23 @@ import (
 	"sync"
 )
 
+func NewBarEnv(exgName, market, symbol, timeframe string) (*BarEnv, error) {
+	tfSecs, err := ParseTimeFrame(timeframe)
+	if err != nil {
+		return nil, err
+	}
+	return &BarEnv{
+		Exchange:   exgName,
+		MarketType: market,
+		Symbol:     symbol,
+		TimeFrame:  timeframe,
+		TFMSecs:    int64(tfSecs * 1000),
+		MaxCache:   1500,
+		Data:       make(map[string]interface{}),
+		Items:      make(map[int]*Series),
+	}, nil
+}
+
 func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume, info float64) error {
 	if e.TimeStop > barMs {
 		return fmt.Errorf("%s/%s old Bar Receive: %d, Current: %d", e.Symbol, e.TimeFrame, barMs, e.TimeStop)
