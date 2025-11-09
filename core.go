@@ -20,7 +20,7 @@ func NewBarEnv(exgName, market, symbol, timeframe string) (*BarEnv, error) {
 		TimeFrame:  timeframe,
 		TFMSecs:    int64(tfSecs * 1000),
 		MaxCache:   1500,
-		Data:       make(map[string]interface{}),
+		Data:       sync.Map{},
 		Items:      make(map[int]*Series),
 	}, nil
 }
@@ -146,13 +146,12 @@ func (e *BarEnv) Clone() *BarEnv {
 		MaxCache:   e.MaxCache,
 		VNum:       e.VNum,
 		Items:      make(map[int]*Series),
-		Data:       make(map[string]interface{}),
+		Data:       sync.Map{},
 	}
-	e.LockData.Lock()
-	for k, v := range e.Data {
-		res.Data[k] = v
-	}
-	e.LockData.Unlock()
+	e.Data.Range(func(key, value interface{}) bool {
+		res.Data.Store(key, value)
+		return true
+	})
 	if e.Open != nil {
 		res.Open = e.Open.CopyTo(res)
 	}

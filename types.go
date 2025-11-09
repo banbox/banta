@@ -36,9 +36,8 @@ type BarEnv struct {
 	Close      *Series
 	Volume     *Series
 	Info       *Series
-	Data       map[string]interface{}
+	Data       sync.Map // map[string]interface{}
 	Items      map[int]*Series
-	LockData   sync.RWMutex
 	LockItems  sync.RWMutex
 }
 
