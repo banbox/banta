@@ -152,12 +152,13 @@ func TestConcurrent(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			// 测试基本读取操作
+			// 测试基本读取操作（读取不需要锁）
 			_ = testEnv.Close.Get(0)
 			_ = testEnv.High.Get(1)
 			_ = testEnv.Low.Get(2)
 
-			// 测试计算操作
+			// 并发计算操作需要手动加锁
+			testEnv.Lock.Lock()
 			_ = testEnv.Close.Add(100).Get(0)
 			_ = testEnv.Close.Sub(50).Get(0)
 			_ = testEnv.Close.Mul(1.1).Get(0)
@@ -165,8 +166,9 @@ func TestConcurrent(t *testing.T) {
 
 			// 测试交叉计算
 			_ = testEnv.Close.Cross(30000)
+			testEnv.Lock.Unlock()
 
-			// 测试范围操作
+			// 测试范围操作（只读不需要锁）
 			_ = testEnv.Close.Range(0, 5)
 		}()
 	}
