@@ -708,13 +708,15 @@ func (c *CGraph) AddBar(e *BarEnv) *CGraph {
 		return c
 	}
 	c.Bars = append(c.Bars, &Kline{
-		Time:   e.TimeStart,
-		Open:   e.Open.Get(0),
-		High:   e.High.Get(0),
-		Low:    e.Low.Get(0),
-		Close:  e.Close.Get(0),
-		Volume: e.Volume.Get(0),
-		Info:   e.Info.Get(0),
+		Time:      e.TimeStart,
+		Open:      e.Open.Get(0),
+		High:      e.High.Get(0),
+		Low:       e.Low.Get(0),
+		Close:     e.Close.Get(0),
+		Volume:    e.Volume.Get(0),
+		Quote:     e.Quote.Get(0),
+		BuyVolume: e.BuyVolume.Get(0),
+		TradeNum:  int64(e.TradeNum.Get(0)),
 	})
 	c.BarNum = e.BarNum
 	return c

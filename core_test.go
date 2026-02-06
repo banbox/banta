@@ -83,7 +83,7 @@ func extractOHLCV(klineData []Kline) (o, h, l, c, v, i []float64) {
 		l = append(l, k.Low)
 		c = append(c, k.Close)
 		v = append(v, k.Volume)
-		i = append(i, k.Info)
+		i = append(i, k.BuyVolume)
 	}
 	return
 }
@@ -141,7 +141,7 @@ func TestConcurrent(t *testing.T) {
 	// 先加载一些数据
 	for i := 0; i < 20; i++ {
 		k := DataKline[i]
-		testEnv.OnBar(k.Time, k.Open, k.High, k.Low, k.Close, k.Volume, k.Info)
+		testEnv.OnBar(k.Time, k.Open, k.High, k.Low, k.Close, k.Volume, k.Quote, k.BuyVolume, k.TradeNum)
 	}
 
 	// 并发读取和计算

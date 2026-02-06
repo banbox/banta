@@ -10,13 +10,15 @@ var (
 )
 
 type Kline struct {
-	Time   int64
-	Open   float64
-	High   float64
-	Low    float64
-	Close  float64
-	Volume float64
-	Info   float64
+	Time      int64
+	Open      float64
+	High      float64
+	Low       float64
+	Close     float64
+	Volume    float64
+	Quote     float64 // volume in quote
+	BuyVolume float64 // taker buy volume
+	TradeNum  int64
 }
 
 type BarEnv struct {
@@ -35,7 +37,9 @@ type BarEnv struct {
 	Low        *Series
 	Close      *Series
 	Volume     *Series
-	Info       *Series
+	Quote      *Series
+	BuyVolume  *Series
+	TradeNum   *Series
 	Data       sync.Map // map[string]interface{}
 	Items      map[int]*Series
 	Lock       sync.Mutex // 用户手动控制的锁，用于保护并发访问

@@ -83,7 +83,7 @@ func OnBar(symbol string, timeframe string, bar *ta.Kline) {
 		}
 		envMap[envKey] = e
 	}
-	e.OnBar(bar)
+	e.OnBar(bar.Time, bar.Open, bar.High, bar.Low, bar.Close, bar.Volume, bar.Quote, bar.BuyVolume, bar.TradeNum)
 	ma5 := ta.SMA(e.Close, 5)
 	ma30 := ta.SMA(e.Close, 30)
 	atr := ta.ATR(e.High, e.Low, e.Close, 14).Get(0)
@@ -164,7 +164,7 @@ klines = [
 # 在实盘中，每收到一根新K线就调用一次 OnBar
 for kline in klines:
     ts, o, h, l, c, v = kline
-    env.OnBar(ts, o, h, l, c, v, 0)
+    env.OnBar(ts, o, h, l, c, v, 0, 0, 0)
 
     # 4. 计算指标
     ma5 = ta.Series(ta.SMA(env.Close, 5))
@@ -210,4 +210,3 @@ d_line = kdj_result[1]
 j_line = kdj_result[2]
 print(f"K-line: {[f'{x:.2f}' for x in list(k_line)[-5:]]}")
 ```
-

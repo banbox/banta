@@ -25,15 +25,15 @@ func NewBarEnv(exgName, market, symbol, timeframe string) (*BarEnv, error) {
 	}, nil
 }
 
-func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume, info float64) error {
+func (e *BarEnv) OnBar(barMs int64, open, high, low, close, volume, quote, buyVolume float64, tradeNum int64) error {
 	if e.TimeStop > barMs {
 		return fmt.Errorf("%s/%s old Bar Receive: %d, Current: %d", e.Symbol, e.TimeFrame, barMs, e.TimeStop)
 	}
-	e.OnBar2(barMs, barMs+e.TFMSecs, open, high, low, close, volume, info)
+	e.OnBar2(barMs, barMs+e.TFMSecs, open, high, low, close, volume, quote, buyVolume, tradeNum)
 	return nil
 }
 
-func (e *BarEnv) OnBar2(barMS, endMS int64, open, high, low, close, volume, info float64) {
+func (e *BarEnv) OnBar2(barMS, endMS int64, open, high, low, close, volume, quote, buyVolume float64, tradeNum int64) {
 	e.TimeStart = barMS
 	e.TimeStop = endMS
 	e.BarNum += 1
@@ -43,7 +43,9 @@ func (e *BarEnv) OnBar2(barMS, endMS int64, open, high, low, close, volume, info
 		e.Low = e.NewSeries([]float64{low})
 		e.Close = e.NewSeries([]float64{close})
 		e.Volume = e.NewSeries([]float64{volume})
-		e.Info = e.NewSeries([]float64{info})
+		e.Quote = e.NewSeries([]float64{quote})
+		e.BuyVolume = e.NewSeries([]float64{buyVolume})
+		e.TradeNum = e.NewSeries([]float64{float64(tradeNum)})
 		if e.MaxCache == 0 {
 			// 默认保留1000个
 			e.MaxCache = 1000
@@ -59,8 +61,12 @@ func (e *BarEnv) OnBar2(barMS, endMS int64, open, high, low, close, volume, info
 		e.Close.Data = append(e.Close.Data, close)
 		e.Volume.Time = barMS
 		e.Volume.Data = append(e.Volume.Data, volume)
-		e.Info.Time = barMS
-		e.Info.Data = append(e.Info.Data, info)
+		e.Quote.Time = barMS
+		e.Quote.Data = append(e.Quote.Data, quote)
+		e.BuyVolume.Time = barMS
+		e.BuyVolume.Data = append(e.BuyVolume.Data, buyVolume)
+		e.TradeNum.Time = barMS
+		e.TradeNum.Data = append(e.TradeNum.Data, float64(tradeNum))
 		e.TrimOverflow()
 	}
 }
@@ -74,7 +80,9 @@ func (e *BarEnv) Reset() {
 	e.Low = nil
 	e.Close = nil
 	e.Volume = nil
-	e.Info = nil
+	e.Quote = nil
+	e.BuyVolume = nil
+	e.TradeNum = nil
 }
 
 func (e *BarEnv) TrimOverflow() {
@@ -161,8 +169,14 @@ func (e *BarEnv) Clone() *BarEnv {
 	if e.Volume != nil {
 		res.Volume = e.Volume.CopyTo(res)
 	}
-	if e.Info != nil {
-		res.Info = e.Info.CopyTo(res)
+	if e.Quote != nil {
+		res.Quote = e.Quote.CopyTo(res)
+	}
+	if e.BuyVolume != nil {
+		res.BuyVolume = e.BuyVolume.CopyTo(res)
+	}
+	if e.TradeNum != nil {
+		res.TradeNum = e.TradeNum.CopyTo(res)
 	}
 	itemList := maps.Values(e.Items)
 	for v := range itemList {
@@ -174,12 +188,14 @@ func (e *BarEnv) Clone() *BarEnv {
 // ResetTo reset all Series to given(exclude ohlcv)
 func (e *BarEnv) ResetTo(env *BarEnv) {
 	rootIds := map[int]bool{
-		env.Open.ID:   true,
-		env.High.ID:   true,
-		env.Low.ID:    true,
-		env.Close.ID:  true,
-		env.Volume.ID: true,
-		env.Info.ID:   true,
+		env.Open.ID:      true,
+		env.High.ID:      true,
+		env.Low.ID:       true,
+		env.Close.ID:     true,
+		env.Volume.ID:    true,
+		env.Quote.ID:     true,
+		env.BuyVolume.ID: true,
+		env.TradeNum.ID:  true,
 	}
 	var items = make([]*Series, 0, len(env.Items))
 	for id, s := range env.Items {
@@ -197,7 +213,9 @@ func (e *BarEnv) ResetTo(env *BarEnv) {
 	e.Low.loadEnvSubs()
 	e.Close.loadEnvSubs()
 	e.Volume.loadEnvSubs()
-	e.Info.loadEnvSubs()
+	e.Quote.loadEnvSubs()
+	e.BuyVolume.loadEnvSubs()
+	e.TradeNum.loadEnvSubs()
 }
 
 func (s *Series) Set(obj interface{}) *Series {
