@@ -842,12 +842,13 @@ func WrapFloatArr(res *Series, period int, inVal float64) []float64 {
 		more = res.More.([]float64)
 	}
 
-	more = append(more, inVal)
 	if len(more) < period {
-		res.More = more
+		more = append(more, inVal)
 	} else {
-		res.More = more[1:]
+		copy(more, more[1:])
+		more[len(more)-1] = inVal
 	}
+	res.More = more
 	return more
 }
 
