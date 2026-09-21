@@ -187,8 +187,10 @@ func runAndCompareCases(t *testing.T, klineData []Kline, items []CaseItem, showT
 			vecResults := it.RunVec(o, h, l, c, v, iData)
 
 			// 运行带状态版本
-			localEnv := &BarEnv{} // 使用本地env确保测试隔离
-			*localEnv = *env      // 复制全局env的配置
+			localEnv, err := NewBarEnv("binance", "spot", "", "1d") // 使用本地 env，避免复制锁
+			if err != nil {
+				t.Fatal(err)
+			}
 			var stateResults []float64
 
 			// 模拟K线推送

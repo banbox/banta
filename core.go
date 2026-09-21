@@ -594,6 +594,17 @@ func (s *Series) Cross(obj2 interface{}) int {
 	return 0
 }
 
+// CrossUp/CrossDown are compatibility helpers for generated strategies. The
+// canonical API remains Cross, whose signed result is preferred when callers
+// need the magnitude.
+func (s *Series) CrossUp(obj2 interface{}) bool {
+	return s.Cross(obj2) > 0
+}
+
+func (s *Series) CrossDown(obj2 interface{}) bool {
+	return s.Cross(obj2) < 0
+}
+
 // Deprecated: use Series.Cross instead
 func Cross(obj1 *Series, obj2 interface{}) int {
 	return obj1.Cross(obj2)

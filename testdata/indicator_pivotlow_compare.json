@@ -1,0 +1,11 @@
+{
+  "indicator": "pivotlow",
+  "fixture_bars": 58,
+  "libraries": {
+    "talib": "0.8.0",
+    "pandas_ta": "0.8.32",
+    "MyTT": "unknown"
+  },
+  "results": {},
+  "fixture": "fixture_btc_58.json"
+}

@@ -136,6 +136,26 @@ func Stoch(high, low, close *Series, period int) Series {
 	return *banta.Stoch(high, low, close, period)
 }
 
+func MOM(obj *Series, period int) Series            { return *banta.MOM(obj, period) }
+func OBV(close, volume *Series) Series              { return *banta.OBV(close, volume) }
+func DEMA(obj *Series, period int) Series           { return *banta.DEMA(obj, period) }
+func T3(obj *Series, period int) Series             { return *banta.T3(obj, period) }
+func AroonOsc(high, low *Series, period int) Series { return *banta.AroonOsc(high, low, period) }
+func AROONOSC(high, low *Series, period int) Series { return *banta.AROONOSC(high, low, period) }
+func StochF(high, low, close *Series, period int, smooth ...int) [2]Series {
+	k, d := banta.StochF(high, low, close, period, smooth...)
+	return [2]Series{*k, *d}
+}
+func STOCHF(close, high, low *Series, period int, smooth ...int) [2]Series {
+	k, d := banta.STOCHF(close, high, low, period, smooth...)
+	return [2]Series{*k, *d}
+}
+func ULTOSC(high, low, close *Series, shortPeriod, mediumPeriod, longPeriod int) Series {
+	return *banta.ULTOSC(high, low, close, shortPeriod, mediumPeriod, longPeriod)
+}
+func SAR(high, low *Series, step, max float64) Series  { return *banta.SAR(high, low, step, max) }
+func PSAR(high, low *Series, step, max float64) Series { return *banta.PSAR(high, low, step, max) }
+
 func Aroon(high *Series, low *Series, period int) [3]Series {
 	s1, s2, s3 := banta.Aroon(high, low, period)
 	return [3]Series{*s1, *s2, *s3}
@@ -158,6 +178,15 @@ func BBANDS(obj *Series, period int, stdUp, stdDn float64) [3]Series {
 	s1, s2, s3 := banta.BBANDS(obj, period, stdUp, stdDn)
 	return [3]Series{*s1, *s2, *s3}
 }
+
+// Extra indicators keep the streaming API available to the Python binding.
+func ROCR(obj *Series, period int) Series              { return *banta.ROCR(obj, period) }
+func NATR(high, low, close *Series, period int) Series { return *banta.NATR(high, low, close, period) }
+func TRIMA(obj *Series, period int) Series             { return *banta.TRIMA(obj, period) }
+func SWMA(obj *Series) Series                          { return *banta.SWMA(obj) }
+func ZLMA(obj *Series, period int) Series              { return *banta.ZLMA(obj, period) }
+func PivotHigh(obj *Series, left, right int) Series    { return *banta.PivotHigh(obj, left, right) }
+func PivotLow(obj *Series, left, right int) Series     { return *banta.PivotLow(obj, left, right) }
 
 func TD(obj *Series) Series {
 	return *banta.TD(obj)
@@ -214,6 +243,44 @@ func ChaikinOsc(env *BarEnv, sml int, big int) Series {
 	return *banta.ChaikinOsc(env, sml, big)
 }
 
+func AO(high, low *Series, fast, slow int) Series { return *banta.AO(high, low, fast, slow) }
+func ADOSC(env *BarEnv, fast, slow int) Series    { return *banta.ADOSC(env, fast, slow) }
+func EFI(env *BarEnv, period int) Series          { return *banta.EFI(env, period) }
+func Donchian(high, low *Series, period int) [3]Series {
+	u, m, d := banta.Donchian(high, low, period)
+	return [3]Series{*u, *m, *d}
+}
+func Squeeze(high, low, close *Series, period int) Series {
+	return *banta.Squeeze(high, low, close, period)
+}
+func Slope(obj *Series, period int) Series    { return *banta.Slope(obj, period) }
+func TRIX(obj *Series, period int) Series     { return *banta.TRIX(obj, period) }
+func TSI(obj *Series, short, long int) Series { return *banta.TSI(obj, short, long) }
+func KST(obj *Series, r1, r2, r3, r4, s1, s2, s3, s4 int) Series {
+	return *banta.KST(obj, r1, r2, r3, r4, s1, s2, s3, s4)
+}
+func DonchianPBand(high, low, close *Series, period int) Series {
+	return *banta.DonchianPBand(high, low, close, period)
+}
+func KeltnerWBand(high, low, close *Series, period int, mult float64) Series {
+	return *banta.KeltnerWBand(high, low, close, period, mult)
+}
+func VPCI(close, volume *Series, period int) Series { return *banta.VPCI(close, volume, period) }
+func WilliamsPercent(high, low, close *Series, period int) Series {
+	return *banta.WilliamsPercent(high, low, close, period)
+}
+func DX(high, low, close *Series, period int) Series { return *banta.DX(high, low, close, period) }
+func Ichimoku(high, low, close *Series, conversion, base, span int) [5]Series {
+	a, b, c, d, e := banta.Ichimoku(high, low, close, conversion, base, span)
+	return [5]Series{*a, *b, *c, *d, *e}
+}
+func MAMA(obj *Series, fast, slow float64) [2]Series {
+	a, b := banta.MAMA(obj, fast, slow)
+	return [2]Series{*a, *b}
+}
+func Fisher(high, low *Series, period int) Series { return *banta.Fisher(high, low, period) }
+func Correlation(a, b *Series, period int) Series { return *banta.Correlation(a, b, period) }
+
 func KAMA(obj *Series, period int) Series {
 	return *banta.KAMA(obj, period)
 }
@@ -246,6 +313,12 @@ func LinReg(obj *Series, period int) Series {
 func LinRegAdv(obj *Series, period int, angle, intercept, degrees, r, slope, tsf bool) Series {
 	return *banta.LinRegAdv(obj, period, angle, intercept, degrees, r, slope, tsf)
 }
+
+func LinearRegAngle(obj *Series, period int) Series { return *banta.LinearRegAngle(obj, period) }
+
+func LINEARREG_ANGLE(obj *Series, period int) Series { return *banta.LINEARREG_ANGLE(obj, period) }
+
+func DPO(obj *Series, period int) Series { return *banta.DPO(obj, period) }
 
 func CTI(obj *Series, period int) Series {
 	return *banta.CTI(obj, period)

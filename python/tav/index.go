@@ -169,6 +169,41 @@ func Stoch(high, low, close []float64, period int) []float64 {
 	return banta_tav.Stoch(high, low, close, period)
 }
 
+func MOM(data []float64, period int) []float64  { return banta_tav.MOM(data, period) }
+func OBV(close, volume []float64) []float64     { return banta_tav.OBV(close, volume) }
+func DEMA(data []float64, period int) []float64 { return banta_tav.DEMA(data, period) }
+func T3(data []float64, period int) []float64   { return banta_tav.T3(data, period) }
+func AroonOsc(high, low []float64, period int) []float64 {
+	return banta_tav.AroonOsc(high, low, period)
+}
+func AROONOSC(high, low []float64, period int) []float64 {
+	return banta_tav.AROONOSC(high, low, period)
+}
+func StochF(high, low, close []float64, period int, smooth ...int) [2][]float64 {
+	k, d := banta_tav.StochF(high, low, close, period, smooth...)
+	return [2][]float64{k, d}
+}
+func STOCHF(close, high, low []float64, period int, smooth ...int) [2][]float64 {
+	k, d := banta_tav.STOCHF(close, high, low, period, smooth...)
+	return [2][]float64{k, d}
+}
+
+func AO(high, low []float64, fast, slow int) []float64 {
+	return banta_tav.AO(high, low, fast, slow)
+}
+func ADOSC(high, low, close, volume []float64, fast, slow int) []float64 {
+	return banta_tav.ADOSC(high, low, close, volume, fast, slow)
+}
+func ULTOSC(high, low, close []float64, shortPeriod, mediumPeriod, longPeriod int) []float64 {
+	return banta_tav.ULTOSC(high, low, close, shortPeriod, mediumPeriod, longPeriod)
+}
+func SAR(high, low []float64, step, max float64) []float64 {
+	return banta_tav.SAR(high, low, step, max)
+}
+func PSAR(high, low []float64, step, max float64) []float64 {
+	return banta_tav.PSAR(high, low, step, max)
+}
+
 // KDJ calculates the KDJ indicator.
 // Returns [3][]float64{k, d, j}.
 func KDJ(high, low, close []float64, period, sm1, sm2 int) [3][]float64 {
@@ -277,6 +312,16 @@ func LinRegAdv(data []float64, period int, angle, intercept, degrees, r, slope, 
 	return banta_tav.LinRegAdv(data, period, angle, intercept, degrees, r, slope, tsf)
 }
 
+func LinearRegAngle(data []float64, period int) []float64 {
+	return banta_tav.LinearRegAngle(data, period)
+}
+
+func LINEARREG_ANGLE(data []float64, period int) []float64 {
+	return banta_tav.LINEARREG_ANGLE(data, period)
+}
+
+func DPO(data []float64, period int) []float64 { return banta_tav.DPO(data, period) }
+
 // CTI calculates the Correlation Trend Indicator.
 func CTI(data []float64, period int) []float64 {
 	return banta_tav.CTI(data, period)
@@ -333,3 +378,48 @@ func HeikinAshi(open, high, low, close []float64) [4][]float64 {
 func Cross(data1 []float64, data2 []float64) []int {
 	return banta_tav.Cross(data1, data2)
 }
+
+func EFI(close, volume []float64, period int) []float64 {
+	return banta_tav.EFI(close, volume, period)
+}
+
+func Donchian(high, low []float64, period int) [3][]float64 {
+	u, m, d := banta_tav.Donchian(high, low, period)
+	return [3][]float64{u, m, d}
+}
+
+func Squeeze(high, low, close []float64, period int) []float64 {
+	return banta_tav.Squeeze(high, low, close, period)
+}
+
+func Slope(data []float64, period int) []float64    { return banta_tav.Slope(data, period) }
+func TRIX(data []float64, period int) []float64     { return banta_tav.TRIX(data, period) }
+func TSI(data []float64, short, long int) []float64 { return banta_tav.TSI(data, short, long) }
+func KST(data []float64, r1, r2, r3, r4, s1, s2, s3, s4 int) []float64 {
+	return banta_tav.KST(data, r1, r2, r3, r4, s1, s2, s3, s4)
+}
+func DonchianPBand(high, low, close []float64, period int) []float64 {
+	return banta_tav.DonchianPBand(high, low, close, period)
+}
+func KeltnerWBand(high, low, close []float64, period int, mult float64) []float64 {
+	return banta_tav.KeltnerWBand(high, low, close, period, mult)
+}
+func VPCI(close, volume []float64, period int) []float64 {
+	return banta_tav.VPCI(close, volume, period)
+}
+func WilliamsPercent(high, low, close []float64, period int) []float64 {
+	return banta_tav.WilliamsPercent(high, low, close, period)
+}
+func DX(high, low, close []float64, period int) []float64 {
+	return banta_tav.DX(high, low, close, period)
+}
+func Ichimoku(high, low, close []float64, conversion, base, span int) [5][]float64 {
+	a, b, c, d, e := banta_tav.Ichimoku(high, low, close, conversion, base, span)
+	return [5][]float64{a, b, c, d, e}
+}
+func MAMA(data []float64, fast, slow float64) [2][]float64 {
+	a, b := banta_tav.MAMA(data, fast, slow)
+	return [2][]float64{a, b}
+}
+func Fisher(high, low []float64, period int) []float64 { return banta_tav.Fisher(high, low, period) }
+func Correlation(a, b []float64, period int) []float64 { return banta_tav.Correlation(a, b, period) }

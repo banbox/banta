@@ -7,6 +7,10 @@ gopy_build_example
 pythonic-core
 tmp
 
+# Generated cross-language comparison report; indicator oracle fixtures are
+# stored separately in testdata/*.json.
+testdata/go_python_comparison.json
+
 # If you prefer the allow list template instead of the deny list, see community template:
 # https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
 #
