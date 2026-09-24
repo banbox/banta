@@ -231,7 +231,7 @@ func DMI(high, low, close *Series, period int, smoothing ...int) (*Series, *Seri
 
 // Parabolic SAR. AF starts at .02, increments by .02, capped at .20.
 func SAR(high, low *Series, step, max float64) *Series {
-	res := high.To("_sar", int(step*1000)*1000+int(max*1000))
+	res := high.To("_sar", pkey(fkey(step), fkey(max)))
 	if res.Cached() {
 		return res
 	}
@@ -336,7 +336,7 @@ func KST(obj *Series, r1, r2, r3, r4, s1, s2, s3, s4 int) *Series {
 }
 
 func MACDBy(obj *Series, fast int, slow int, smooth int, initType int) (*Series, *Series) {
-	res := obj.To("_macd", fast*1000+slow*100+smooth*10+initType)
+	res := obj.To("_macd", fast*100000000+slow*1000000+smooth*100+initType)
 	if !res.Cached() {
 		if !res.Cached() {
 			short := EMABy(obj, fast, initType)
@@ -376,7 +376,7 @@ func pluMinDIBy(high *Series, low *Series, close *Series, period, method int) (*
 UTBot UT Bot Alerts from TradingView
 */
 func UTBot(c, atr *Series, rate float64) *Series {
-	res := atr.To("_utBot", int(rate*10))
+	res := atr.To("_utBot", pkey(fkey(rate)))
 	if res.Cached() {
 		return res
 	}

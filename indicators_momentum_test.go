@@ -26,3 +26,25 @@ func TestMomentumIndicatorsParity(t *testing.T) {
 		}
 	}
 }
+
+func TestRMIAllowsMultiplePeriodsWithSharedMomentumLength(t *testing.T) {
+	e, err := NewBarEnv("momentum", "spot", "BTC/USDT", "1d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("RMI panicked when multiple periods shared montLen: %v", r)
+		}
+	}()
+	for i := 0; i < 80; i++ {
+		close := 100 + float64((i*7)%23) + float64(i)/10
+		if err := e.OnBar(int64(i+1)*86400000, close-1, close+2, close-2, close, 10, 0, 0, 0); err != nil {
+			t.Fatal(err)
+		}
+		_ = RMI(e.Close, 8, 3).Get(0)
+		_ = RMI(e.Close, 12, 3).Get(0)
+		_ = RMI(e.Close, 30, 3).Get(0)
+		_ = RMI(e.Close, 520, 3).Get(0)
+	}
+}

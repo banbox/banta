@@ -64,7 +64,7 @@ period: 20, stdUp: 2, stdDn: 2
 return [upper, mid, lower]
 */
 func BBANDS(obj *Series, period int, stdUp, stdDn float64) (*Series, *Series, *Series) {
-	res := obj.To("_bb", period*10000+int(stdUp*1000)+int(stdDn*10))
+	res := obj.To("_bb", pkey(ikey(period), fkey(stdUp), fkey(stdDn)))
 	if !res.Cached() {
 		if !res.Cached() {
 			devCol, meanCol := StdDevBy(obj, period, 0)
@@ -197,7 +197,7 @@ func NATR(high, low, close *Series, period int) *Series {
 }
 
 func Supertrend(high, low, close *Series, period int, multiplier float64) *Series {
-	r := close.To("_supertrend", pkey(period, multiplier))
+	r := close.To("_supertrend", pkey(ikey(period), fkey(multiplier)))
 	if r.Cached() {
 		return r
 	}

@@ -38,7 +38,7 @@ func DonchianPBand(high, low, close *Series, period int) *Series {
 }
 
 func KeltnerChannel(high, low, close *Series, period int, multiplier float64) (*Series, *Series, *Series) {
-	k := pkey(period, multiplier)
+	k := pkey(ikey(period), fkey(multiplier))
 	u := close.To("_kc_u", k)
 	m := close.To("_kc_m", k)
 	l := close.To("_kc_l", k)
@@ -52,7 +52,7 @@ func KeltnerChannel(high, low, close *Series, period int, multiplier float64) (*
 }
 
 func KeltnerWBand(high, low, close *Series, period int, mult float64) *Series {
-	r := close.To("_keltner_wband", period*1000+int(mult*100))
+	r := close.To("_keltner_wband", pkey(ikey(period), fkey(mult)))
 	if !r.Cached() {
 		r.Append(last(tav.KeltnerWBand(hist(high), hist(low), hist(close), period, mult)))
 	}
@@ -60,7 +60,7 @@ func KeltnerWBand(high, low, close *Series, period int, mult float64) *Series {
 }
 
 func PMAX(high, low, close *Series, period int, multiplier float64) (*Series, *Series) {
-	k := pkey(period, multiplier)
+	k := pkey(ikey(period), fkey(multiplier))
 	p := close.To("_pmax", k)
 	d := close.To("_pmax_dir", k)
 	if p.Len() < close.Len() {

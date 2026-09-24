@@ -117,7 +117,15 @@ For stateful code:
 - Set `res.DupMore` and deep-copy slices so cloned environments cannot share
   mutable state.
 - Use `obj.To` with a unique function key and all parameters represented in the
-  cache key. Match existing dependency composition where possible.
+  cache key. Match existing dependency composition where possible. Every
+  numeric parameter must be an independent feature of the `intKey`, including
+  optional parameters after applying their effective default. Do not build
+  keys by adding scaled values or by truncating floats: those schemes can make
+  distinct calls share one state series (for example, MACD calls with the same
+  fast/slow periods but different smooth periods). Keep integer-only hot paths
+  on direct arithmetic keys; use the typed `pkey` helper only when a key needs
+  full-precision float bits. It must not accept `interface{}` values or cause
+  boxing; preserve parameter order, sign, and `NaN` representation.
 - Append one output for every input bar, including `math.NaN()` during warm-up
   or when the contract says the value is undefined.
 - Treat isolated `NaN` values explicitly. Follow the selected reference's

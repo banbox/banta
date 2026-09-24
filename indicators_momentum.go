@@ -355,8 +355,11 @@ func RMI(obj *Series, period int, montLen int) *Series {
 		return res
 	}
 	if !res.Cached() {
-		maxChg := obj.To("_max_chg", montLen)
-		minChg := obj.To("_min_chg", montLen)
+		// These helper series are stateful. Include the complete RMI parameter
+		// set in their cache key so calls that share montLen do not append to
+		// the same series during one bar.
+		maxChg := obj.To("_rmi_max_chg", period).To("_mont_len", montLen)
+		minChg := obj.To("_rmi_min_chg", period).To("_mont_len", montLen)
 		inVal := obj.Get(0)
 		if math.IsNaN(inVal) {
 			maxChg.Append(math.NaN())
@@ -450,7 +453,7 @@ period: 12  fast: 26  slow: 50  alpha: 0.5
 https://www.tradingview.com/u/shayankm/
 */
 func STC(obj *Series, period, fast, slow int, alpha float64) *Series {
-	res := obj.To("_stc", fast*10000+slow*100+period)
+	res := obj.To("_stc", pkey(ikey(period), ikey(fast), ikey(slow), fkey(alpha)))
 	if res.Cached() {
 		return res
 	}
@@ -726,10 +729,11 @@ func STOCH(close, high, low *Series, period int) *Series {
 
 // StochF returns fast stochastic %K and %D (3-period SMA of %K).
 func StochF(high, low, close *Series, period int, smooth ...int) (*Series, *Series) {
-	key := period
-	if len(smooth) > 0 {
-		key = key*1000 + smooth[0]
+	d := 3
+	if len(smooth) > 0 && smooth[0] > 0 {
+		d = smooth[0]
 	}
+	key := period*1000 + d
 	k := close.To("_stochf_k", key)
 	raw := close.To("_stochf_raw", key)
 	if k.Len() < close.Len() {
@@ -752,10 +756,6 @@ func StochF(high, low, close *Series, period int, smooth ...int) (*Series, *Seri
 			k.Append(value)
 		}
 	}
-	d := 3
-	if len(smooth) > 0 && smooth[0] > 0 {
-		d = smooth[0]
-	}
 	return k, SMA(raw, d)
 }
 
@@ -769,8 +769,9 @@ func ULTOSC(high, low, close *Series, short, medium, long int) *Series {
 			tr = math.Max(high.Get(0), prev) - math.Min(low.Get(0), prev)
 			bp = close.Get(0) - math.Min(low.Get(0), prev)
 		}
-		bs := close.To("_ultbp", short*1000000+medium*1000+long)
-		ts := close.To("_ulttr", short*1000000+medium*1000+long)
+		key := short*1000000 + medium*1000 + long
+		bs := close.To("_ultbp", key)
+		ts := close.To("_ulttr", key)
 		if !bs.Cached() {
 			bs.Append(bp)
 			ts.Append(tr)
@@ -808,7 +809,7 @@ func WilliamsPercent(high, low, close *Series, period int) *Series {
 }
 
 func rsiBy(obj *Series, period int, subVal float64) *Series {
-	res := obj.To("_rsi", period*100+int(subVal))
+	res := obj.To("_rsi", pkey(ikey(period), fkey(subVal)))
 	if res.Cached() {
 		return res
 	}

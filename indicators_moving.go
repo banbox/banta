@@ -13,7 +13,7 @@ sigma: Smoothing value. Default 6.0
 distOff: min 0 (smoother), max 1 (more responsive). Default: 0.85
 */
 func ALMA(obj *Series, period int, sigma, distOff float64) *Series {
-	res := obj.To("_alma", period*1000+int(sigma*100+distOff*100))
+	res := obj.To("_alma", pkey(ikey(period), fkey(sigma), fkey(distOff)))
 	if res.Cached() {
 		return res
 	}
@@ -157,11 +157,7 @@ initType：0使用SMA初始化，1第一个有效值初始化
 initVal 默认Nan
 */
 func RMABy(obj *Series, period int, initType int, initVal float64) *Series {
-	hash := period*1000 + initType*100
-	if !math.IsNaN(initVal) {
-		hash += int(initVal)
-	}
-	res := obj.To("_rma", hash)
+	res := obj.To("_rma", pkey(ikey(period), ikey(initType), fkey(initVal)))
 	alpha := 1.0 / float64(period)
 	return ewma(obj, res, period, alpha, initType, initVal)
 }
@@ -385,8 +381,7 @@ func VWAP(first, second *Series, rest ...*Series) *Series {
 }
 
 func MAMA(obj *Series, fast, slow float64) (*Series, *Series) {
-	k := int(fast*1000) + int(slow*10)
-	r := obj.To("_mama", k)
+	r := obj.To("_mama", pkey(fkey(fast), fkey(slow)))
 	if !r.Cached() {
 		a, b := tav.MAMA(hist(obj), fast, slow)
 		r.Append([]float64{last(a), last(b)})

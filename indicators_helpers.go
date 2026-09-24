@@ -2,6 +2,7 @@ package banta
 
 import (
 	"math"
+	"math/bits"
 )
 
 // (cur-min)*100/(max-min)
@@ -75,7 +76,49 @@ func last(v []float64) float64 {
 	return v[len(v)-1]
 }
 
-func pkey(p int, m float64) int { return p*100000 + int(m*1000) }
+// pkey hashes raw integer/float bits without interface boxing. Use it for
+// keys that include full-precision float parameters; integer-only hot paths
+// use direct arithmetic keys.
+func pkey(values ...uint64) int {
+	switch len(values) {
+	case 1:
+		return int(values[0])
+	case 2:
+		if values[0] <= 0xffffffff && values[1] <= 0xffffffff {
+			return int(values[0]<<32 | values[1])
+		}
+	case 3:
+		if values[0] <= 0xffff && values[1] <= 0xffff && values[2] <= 0xffff {
+			return int(values[0]<<32 | values[1]<<16 | values[2])
+		}
+	case 4:
+		if values[0] <= 0xffff && values[1] <= 0xffff && values[2] <= 0xffff && values[3] <= 0xffff {
+			return int(values[0]<<48 | values[1]<<32 | values[2]<<16 | values[3])
+		}
+	}
+	if len(values) == 2 {
+		return int(values[0] ^ bits.RotateLeft64(values[1], 23))
+	}
+	if len(values) == 3 {
+		return int(values[0] ^ bits.RotateLeft64(values[1], 23) ^ bits.RotateLeft64(values[2], 47))
+	}
+	if len(values) == 4 {
+		return int(values[0] ^ bits.RotateLeft64(values[1], 23) ^ bits.RotateLeft64(values[2], 47) ^ bits.RotateLeft64(values[3], 11))
+	}
+	h := uint64(len(values)) + 0x9e3779b97f4a7c15
+	for _, value := range values {
+		h ^= value + 0x9e3779b97f4a7c15 + (h << 6) + (h >> 2)
+	}
+	h ^= h >> 30
+	h *= 0xbf58476d1ce4e5b9
+	h ^= h >> 27
+	h *= 0x94d049bb133111eb
+	h ^= h >> 31
+	return int(h)
+}
+
+func ikey(value int) uint64     { return uint64(int64(value)) }
+func fkey(value float64) uint64 { return math.Float64bits(value) }
 
 type cmdSta struct {
 	subs   []float64
